@@ -70,10 +70,7 @@ export class GeminiLiveClient {
         });
       },
       sendText: (text: string) => {
-        session.sendClientContent({
-          turns: [{ role: "user", parts: [{ text }] }],
-          turnComplete: true
-        });
+        session.sendRealtimeInput({ text });
       },
       sendToolResponse: (response) => {
         session.sendToolResponse({
@@ -95,13 +92,27 @@ export class GeminiLiveClient {
     handlers: GeminiLiveHandlers
   ): Promise<void> {
     const message = normalizeLiveMessage(rawMessage);
-    const audioData =
-      message.data ??
-      message.serverContent?.modelTurn?.parts?.find((part: any) => part.inlineData)?.inlineData
-        ?.data;
+    const parts = Array.isArray(message.serverContent?.modelTurn?.parts)
+      ? message.serverContent.modelTurn.parts
+      : [];
 
-    if (audioData) {
-      handlers.onAudio(Buffer.from(audioData, "base64"));
+    if (parts.length > 0) {
+      const outputTextParts: string[] = [];
+      for (const part of parts) {
+        const inlineData = part.inlineData;
+        if (inlineData?.data) {
+          handlers.onAudio(Buffer.from(inlineData.data, "base64"));
+        }
+        if (typeof part.text === "string") {
+          outputTextParts.push(part.text);
+        }
+      }
+
+      if (!message.serverContent?.outputTranscription?.text && outputTextParts.length > 0) {
+        handlers.onOutputTranscript(outputTextParts.join(" "));
+      }
+    } else if (message.data) {
+      handlers.onAudio(Buffer.from(message.data, "base64"));
     }
 
     const inputTranscript = message.serverContent?.inputTranscription?.text;
