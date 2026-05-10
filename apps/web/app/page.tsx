@@ -147,9 +147,11 @@ export default async function DashboardPage() {
               {data.metrics.followUpsToday === 1 ? "" : "s"} queued.
             </span>
           </div>
-          <a className="primaryButton" href="/calls">
-            View all calls <ChevronRight size={20} aria-hidden />
-          </a>
+          <form action="/calls" className="heroActionForm">
+            <button className="primaryButton" type="submit">
+              View all calls <ChevronRight size={20} aria-hidden />
+            </button>
+          </form>
         </section>
 
         <section className="metrics" aria-label="Call metrics">

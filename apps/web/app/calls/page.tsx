@@ -68,9 +68,19 @@ interface DashboardData {
   generatedAt: string;
 }
 
-export default async function CallsPage() {
+type CallsFilter = "all" | "qualified" | "pending" | "not-qualified" | "showings";
+
+export default async function CallsPage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const result = await getDashboard();
   const data = result.ok ? result.data : fallbackDashboard();
+  const params = (await searchParams) ?? {};
+  const filter = callsFilter(firstParam(params.filter));
+  const query = firstParam(params.q).trim();
+  const filteredCalls = filterCalls(data.recentCalls, filter, query);
 
   return (
     <main className="shell">
@@ -142,24 +152,30 @@ export default async function CallsPage() {
         ) : null}
 
         <section className="callsToolbar">
-          <label className="searchBox">
+          <form className="searchBox" action="/calls">
             <Search size={22} aria-hidden />
-            <input placeholder="Search caller, phone, property" aria-label="Search calls" />
-          </label>
-          <button type="button">
-            <Filter size={20} aria-hidden /> Filters
-          </button>
-          <button type="button">
+            <input
+              name="q"
+              placeholder="Search caller, phone, property"
+              aria-label="Search calls"
+              defaultValue={query}
+            />
+            <input name="filter" type="hidden" value={filter} />
+          </form>
+          <a className="secondaryButton" href="/calls">
+            <Filter size={20} aria-hidden /> Clear
+          </a>
+          <button type="button" aria-disabled="true">
             <Download size={20} aria-hidden /> Export
           </button>
         </section>
 
         <section className="tabBar" aria-label="Call filters">
-          <span className="active">All <b>{data.recentCalls.length}</b></span>
-          <span>Qualified <b>{qualifiedCount(data)}</b></span>
-          <span>Pending <b>{pendingCount(data)}</b></span>
-          <span>Not qualified <b>{notQualifiedCount(data)}</b></span>
-          <span>Showings booked <b>{showingsBookedCount(data)}</b></span>
+          <FilterLink active={filter === "all"} count={data.recentCalls.length} label="All" query={query} value="all" />
+          <FilterLink active={filter === "qualified"} count={qualifiedCount(data)} label="Qualified" query={query} value="qualified" />
+          <FilterLink active={filter === "pending"} count={pendingCount(data)} label="Pending" query={query} value="pending" />
+          <FilterLink active={filter === "not-qualified"} count={notQualifiedCount(data)} label="Not qualified" query={query} value="not-qualified" />
+          <FilterLink active={filter === "showings"} count={showingsBookedCount(data)} label="Showings booked" query={query} value="showings" />
         </section>
 
         <section className="band callsListCard" id="calls">
@@ -172,8 +188,8 @@ export default async function CallsPage() {
           </div>
 
           <div className="callStack" aria-label="Call details">
-            {data.recentCalls.length > 0 ? (
-              data.recentCalls.map((call, index) => (
+            {filteredCalls.length > 0 ? (
+              filteredCalls.map((call, index) => (
                 <details className="callRecord" key={call.id} open={index === 0}>
                   <summary>
                     <span className="summaryIcon phoneIcon">
@@ -224,12 +240,33 @@ export default async function CallsPage() {
                 </details>
               ))
             ) : (
-              <div className="emptyRow">No calls have been logged yet today.</div>
+              <div className="emptyRow">No calls match the current filters.</div>
             )}
           </div>
         </section>
       </section>
     </main>
+  );
+}
+
+function FilterLink({
+  active,
+  count,
+  label,
+  query,
+  value
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  query: string;
+  value: CallsFilter;
+}) {
+  const href = callsHref(value, query);
+  return (
+    <a className={active ? "active" : ""} href={href}>
+      {label} <b>{count}</b>
+    </a>
   );
 }
 
@@ -458,6 +495,61 @@ function notQualifiedCount(data: DashboardData): number {
 
 function showingsBookedCount(data: DashboardData): number {
   return data.recentCalls.filter((call) => call.outcome === "showing_booked").length;
+}
+
+function filterCalls(
+  calls: DashboardData["recentCalls"],
+  filter: CallsFilter,
+  query: string
+): DashboardData["recentCalls"] {
+  const normalizedQuery = query.toLowerCase();
+  return calls.filter((call) => {
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "qualified" && call.qualificationStatus === "yes") ||
+      (filter === "pending" && !call.qualificationStatus) ||
+      (filter === "not-qualified" && call.qualificationStatus === "no") ||
+      (filter === "showings" && call.outcome === "showing_booked");
+
+    if (!matchesFilter) return false;
+    if (!normalizedQuery) return true;
+
+    return [
+      call.callerName,
+      call.callerPhone,
+      call.callerEmail,
+      call.propertyAddress,
+      stringValue(call.lead?.desiredMoveInDate)
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedQuery);
+  });
+}
+
+function callsFilter(value: string): CallsFilter {
+  if (
+    value === "qualified" ||
+    value === "pending" ||
+    value === "not-qualified" ||
+    value === "showings"
+  ) {
+    return value;
+  }
+  return "all";
+}
+
+function callsHref(filter: CallsFilter, query: string): string {
+  const params = new URLSearchParams();
+  if (filter !== "all") params.set("filter", filter);
+  if (query) params.set("q", query);
+  const search = params.toString();
+  return search ? `/calls?${search}` : "/calls";
+}
+
+function firstParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
 }
 
 function audioLabel(kind: string): string {

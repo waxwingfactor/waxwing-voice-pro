@@ -359,6 +359,10 @@ h2 {
   font-size: 18px;
 }
 
+.heroActionForm {
+  margin: 0;
+}
+
 .primaryButton,
 .secondaryButton {
   position: relative;
@@ -436,6 +440,94 @@ h2 {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
   gap: 24px;
+}
+
+.calendarLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.65fr);
+  gap: 24px;
+}
+
+.calendarBoard {
+  min-width: 0;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.calendarDay {
+  display: grid;
+  gap: 8px;
+  min-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffdfa;
+}
+
+.calendarDay > span {
+  color: var(--teal-dark);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.calendarDay > strong {
+  font-size: 18px;
+}
+
+.calendarDay > div {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.calendarDay p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.calendarEvent {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--teal-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.calendarEvent b,
+.calendarEvent small,
+.calendarEvent em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendarEvent b {
+  color: var(--teal-dark);
+}
+
+.calendarEvent small {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.calendarEvent em {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
 }
 
 .sideStack {
@@ -639,10 +731,10 @@ h2 {
 
 .showingItem {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  gap: 2px 14px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 6px 14px;
   align-items: center;
-  padding: 14px 0;
+  padding: 16px 0;
   border-bottom: 1px solid var(--line);
   color: inherit;
   text-decoration: none;
@@ -650,9 +742,9 @@ h2 {
 
 .showingItem span {
   display: grid;
-  grid-row: span 2;
-  width: 58px;
-  height: 58px;
+  grid-row: span 3;
+  width: 56px;
+  height: 56px;
   place-items: center;
   border-radius: 16px;
   background: var(--teal-soft);
@@ -668,15 +760,20 @@ h2 {
   white-space: nowrap;
 }
 
+.showingItem strong {
+  font-size: 16px;
+}
+
 .showingItem small {
   color: var(--muted);
+  font-size: 14px;
 }
 
 .showingItem em {
-  grid-row: span 2;
-  color: var(--muted);
+  color: var(--teal-dark);
   font-style: normal;
   font-weight: 800;
+  font-size: 15px;
 }
 
 .connectionCard span {
@@ -758,7 +855,7 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
-.tabBar span {
+.tabBar a {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -766,6 +863,7 @@ h2 {
   color: var(--muted);
   font-size: 18px;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .tabBar .active {
@@ -1371,6 +1469,7 @@ h2 {
 @media (max-width: 1100px) {
   .metrics,
   .dashboardGrid,
+  .calendarLayout,
   .callHero,
   .callDetailGrid {
     grid-template-columns: 1fr;
