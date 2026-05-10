@@ -44,6 +44,7 @@ export class GoogleCalendarProvider {
     timeMax: Date;
     durationMinutes: number;
     timezone: string;
+    maxSlots?: number;
   }): Promise<ShowingSlot[]> {
     if (!this.oauth2 || !params.refreshToken) {
       return [];
@@ -67,7 +68,8 @@ export class GoogleCalendarProvider {
 
     const slots: ShowingSlot[] = [];
     const cursor = roundUpToNextHalfHour(params.timeMin);
-    while (cursor < params.timeMax && slots.length < 5) {
+    const maxSlots = params.maxSlots ?? 10;
+    while (cursor < params.timeMax && slots.length < maxSlots) {
       const end = new Date(cursor.getTime() + params.durationMinutes * 60_000);
       const localStartMinute = getLocalMinuteOfDay(cursor, params.timezone);
       const localEndMinute = getLocalMinuteOfDay(end, params.timezone);

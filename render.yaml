@@ -6,3 +6,20 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
+    envVars:
+      - key: DASHBOARD_API_KEY
+        sync: false
+  - type: web
+    name: waxwing-voice-dashboard
+    env: node
+    buildCommand: npm install && npm run build:web
+    startCommand: npm run start:web
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: API_BASE_URL
+        value: https://waxwing-voice-pro.onrender.com
+      - key: DASHBOARD_CLIENT_SLUG
+        value: default
+      - key: DASHBOARD_API_KEY
+        sync: false

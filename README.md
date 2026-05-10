@@ -13,14 +13,26 @@ Waxwing Voice Pro is an AI leasing assistant for property managers. It connects 
 
 ## Render Deployment
 
-Deploy the realtime voice API as the Render Web Service.
+Deploy the realtime voice API and dashboard as separate Render Web Services.
+
+Voice API service:
 
 - Build command: `npm install && npm run build`
 - Start command: `npm start`
 - Health check path: `/health`
 
+Dashboard service:
+
+- Build command: `npm install && npm run build:web`
+- Start command: `npm run start:web`
+- Health check path: `/`
+- Environment variables:
+  - `API_BASE_URL=https://waxwing-voice-pro.onrender.com`
+  - `DASHBOARD_CLIENT_SLUG=default`
+  - `DASHBOARD_API_KEY=<same value as the API service, if enabled>`
+
 The root production build is API-only because Twilio Media Streams need the
-Fastify WebSocket service. The dashboard can be deployed as a separate web
-service later with `npm run build:web`.
+Fastify WebSocket service. The dashboard is a Next.js service that server-fetches
+the API dashboard endpoint.
 
 The repo is intentionally split into small packages so the voice gateway, admin UI, provider adapters, and core leasing logic can grow independently.

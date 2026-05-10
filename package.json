@@ -15,6 +15,7 @@
     "dev": "npm run dev --workspace @waxwing/api",
     "dev:web": "npm run dev --workspace @waxwing/web",
     "start": "npm run start --workspace @waxwing/api",
+    "start:web": "npm run start --workspace @waxwing/web",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

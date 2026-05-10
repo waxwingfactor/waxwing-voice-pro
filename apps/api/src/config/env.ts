@@ -19,6 +19,7 @@ const envSchema = z.object({
   API_BASE_URL: z.string().url().default("http://localhost:8787"),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
   OWNER_NOTIFICATION_EMAIL: optionalEmail,
+  DASHBOARD_API_KEY: optionalString,
   SESSION_SECRET: optionalString,
   WEBHOOK_SIGNING_SECRET: optionalString,
   ENCRYPTION_KEY: optionalString,

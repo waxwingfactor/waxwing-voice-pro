@@ -66,6 +66,49 @@ export class InMemoryRepository implements AppRepository {
     return slug === client.slug ? client : null;
   }
 
+  async getDashboardSnapshot(clientSlug: string) {
+    if (clientSlug !== client.slug) return null;
+    const calls = [...this.calls.values()]
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .slice(0, 10);
+
+    return {
+      client,
+      metrics: {
+        callsToday: calls.length,
+        qualifiedLeadsToday: calls.filter(
+          (call) => call.qualification?.qualifiedToApply === "yes"
+        ).length,
+        showingsBookedToday: calls.filter((call) => call.outcome === "showing_booked").length,
+        followUpsToday: calls.filter(
+          (call) => call.lead.callbackRequested || call.status === "failed"
+        ).length,
+        complianceEventsToday: calls.reduce(
+          (count, call) => count + call.complianceEvents.length,
+          0
+        )
+      },
+      recentCalls: calls.map((call) => ({
+        id: call.id,
+        startedAt: call.startedAt,
+        status: call.status,
+        outcome: call.outcome,
+        callerName: call.lead.callerName,
+        callerPhone: call.lead.callerPhone,
+        propertyAddress: call.lead.propertyAddress,
+        qualificationStatus: call.qualification?.qualifiedToApply,
+        showingRequested: call.lead.showingRequested === true,
+        callbackRequested: call.lead.callbackRequested === true,
+        complianceEventCount: call.complianceEvents.length
+      })),
+      counts: {
+        activeProperties: properties.length,
+        calendarConnections: 0
+      },
+      calendarConnections: []
+    };
+  }
+
   async listActiveProperties(clientId: string): Promise<PropertyRecord[]> {
     return properties.filter((property) => property.clientId === clientId && property.active);
   }

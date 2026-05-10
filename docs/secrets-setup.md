@@ -28,6 +28,16 @@ Use a different random value.
 openssl rand -base64 32
 ```
 
+### `DASHBOARD_API_KEY`
+
+Optional but recommended. Use one random value on both the API service and the
+dashboard service. The dashboard sends it as a server-side bearer token when it
+fetches live operations data.
+
+```bash
+openssl rand -base64 32
+```
+
 ### `ENCRYPTION_KEY`
 
 This must decode to exactly 32 bytes. Use:

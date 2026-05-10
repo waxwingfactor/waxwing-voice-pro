@@ -49,7 +49,7 @@ export function getToolDeclarations(): Array<Record<string, unknown>> {
     {
       name: "find_showing_slots",
       description:
-        "Find available Google Calendar slots for a property showing. Use this whenever the caller asks what showing dates, tour times, appointment times, or viewing slots are available.",
+        "Find available Google Calendar slots for a property showing. Use this whenever the caller asks what showing dates, tour times, appointment times, viewing slots, earliest showing, or latest showing are available.",
       parameters: {
         type: Type.OBJECT,
         properties: {

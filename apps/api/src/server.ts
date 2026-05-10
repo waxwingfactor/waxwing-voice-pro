@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { SupabaseAppRepository, SupabaseArtifactStorage } from "@waxwing/db";
 import type { AppEnv } from "./config/env.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerTwilioRoutes } from "./routes/twilio.js";
 import { registerOAuthRoutes } from "./routes/oauth.js";
 import { InMemoryRepository, InMemoryStorage } from "./testing/in-memory.js";
@@ -79,6 +80,7 @@ export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
   });
 
   registerHealthRoutes(app);
+  registerDashboardRoutes(app, { env, repository });
   registerOAuthRoutes(app, { env, calendar, repository, tokenVault });
   registerTwilioRoutes(app, {
     env,

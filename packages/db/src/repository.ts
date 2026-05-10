@@ -32,8 +32,44 @@ export interface CalendarConnection {
   scopes: string[];
 }
 
+export interface DashboardRecentCall {
+  id: string;
+  startedAt: string;
+  status: string;
+  outcome?: string;
+  callerName?: string;
+  callerPhone?: string;
+  propertyAddress?: string;
+  qualificationStatus?: string;
+  showingRequested: boolean;
+  callbackRequested: boolean;
+  complianceEventCount: number;
+}
+
+export interface DashboardRepositorySnapshot {
+  client: ClientProfile;
+  metrics: {
+    callsToday: number;
+    qualifiedLeadsToday: number;
+    showingsBookedToday: number;
+    followUpsToday: number;
+    complianceEventsToday: number;
+  };
+  recentCalls: DashboardRecentCall[];
+  counts: {
+    activeProperties: number;
+    calendarConnections: number;
+  };
+  calendarConnections: Array<{
+    calendarId: string;
+    googleAccountEmail: string;
+    connectedAt: string;
+  }>;
+}
+
 export interface AppRepository {
   getClientBySlug(slug: string): Promise<ClientProfile | null>;
+  getDashboardSnapshot(clientSlug: string): Promise<DashboardRepositorySnapshot | null>;
   listActiveProperties(clientId: string): Promise<PropertyRecord[]>;
   getProperty(propertyId: string): Promise<PropertyRecord | null>;
   getCallIdByTwilioSid(twilioCallSid: string): Promise<string | null>;
@@ -96,6 +132,64 @@ export class SupabaseAppRepository implements AppRepository {
 
     if (error) throw error;
     return data ? mapClient(data) : null;
+  }
+
+  async getDashboardSnapshot(clientSlug: string): Promise<DashboardRepositorySnapshot | null> {
+    const client = await this.getClientBySlug(clientSlug);
+    if (!client) return null;
+
+    const startOfToday = startOfTodayInTimezone(client.timezone).toISOString();
+    const [{ data: calls, error: callsError }, propertiesCount, calendarConnections, showingsBooked] =
+      await Promise.all([
+        this.supabase
+          .from("calls")
+          .select("id, started_at, status, outcome, lead, qualification, compliance_events")
+          .eq("client_id", client.id)
+          .gte("started_at", startOfToday)
+          .order("started_at", { ascending: false })
+          .limit(500),
+        this.countRows("properties", { client_id: client.id, active: true }),
+        this.listCalendarConnections(client.id),
+        this.countRows("showings", { status: "booked" }, "created_at", startOfToday)
+      ]);
+
+    if (callsError) throw callsError;
+
+    const todayCalls = (calls ?? []) as Array<Record<string, any>>;
+    const recentCalls = todayCalls.slice(0, 10).map(mapDashboardCall);
+    const complianceEventsToday = todayCalls.reduce(
+      (count, call) => count + complianceEventCount(call.compliance_events),
+      0
+    );
+    const qualifiedLeadsToday = todayCalls.filter(
+      (call) => call.qualification?.qualifiedToApply === "yes"
+    ).length;
+    const followUpsToday = todayCalls.filter((call) => {
+      const lead = call.lead ?? {};
+      return (
+        lead.callbackRequested === true ||
+        call.qualification?.needsHumanFollowUp === true ||
+        call.status === "failed" ||
+        call.outcome === "transferred"
+      );
+    }).length;
+
+    return {
+      client,
+      metrics: {
+        callsToday: todayCalls.length,
+        qualifiedLeadsToday,
+        showingsBookedToday: showingsBooked,
+        followUpsToday,
+        complianceEventsToday
+      },
+      recentCalls,
+      counts: {
+        activeProperties: propertiesCount,
+        calendarConnections: calendarConnections.length
+      },
+      calendarConnections
+    };
   }
 
   async listActiveProperties(clientId: string): Promise<PropertyRecord[]> {
@@ -282,6 +376,45 @@ export class SupabaseAppRepository implements AppRepository {
     });
     if (error) throw error;
   }
+
+  private async countRows(
+    table: string,
+    filters: Record<string, unknown>,
+    gteColumn?: string,
+    gteValue?: string
+  ): Promise<number> {
+    let query = this.supabase.from(table).select("*", { count: "exact", head: true });
+    for (const [column, value] of Object.entries(filters)) {
+      query = query.eq(column, value);
+    }
+    if (gteColumn && gteValue) {
+      query = query.gte(gteColumn, gteValue);
+    }
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  private async listCalendarConnections(clientId: string): Promise<
+    Array<{
+      calendarId: string;
+      googleAccountEmail: string;
+      connectedAt: string;
+    }>
+  > {
+    const { data, error } = await this.supabase
+      .from("calendar_connections")
+      .select("calendar_id, google_account_email, connected_at")
+      .eq("client_id", clientId)
+      .order("connected_at", { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      calendarId: row.calendar_id,
+      googleAccountEmail: row.google_account_email,
+      connectedAt: row.connected_at
+    }));
+  }
 }
 
 function mapClient(row: Record<string, any>): ClientProfile {
@@ -338,5 +471,83 @@ function callRow(snapshot: CallSnapshot): Record<string, unknown> {
     transcript: snapshot.transcript,
     outcome: snapshot.outcome,
     updated_at: new Date().toISOString()
+  };
+}
+
+function mapDashboardCall(row: Record<string, any>): DashboardRecentCall {
+  const lead = row.lead ?? {};
+  return {
+    id: row.id,
+    startedAt: row.started_at,
+    status: row.status,
+    outcome: row.outcome ?? undefined,
+    callerName: lead.callerName ?? undefined,
+    callerPhone: lead.callerPhone ?? undefined,
+    propertyAddress: lead.propertyAddress ?? lead.propertyNameRaw ?? undefined,
+    qualificationStatus: row.qualification?.qualifiedToApply ?? undefined,
+    showingRequested: lead.showingRequested === true,
+    callbackRequested: lead.callbackRequested === true,
+    complianceEventCount: complianceEventCount(row.compliance_events)
+  };
+}
+
+function complianceEventCount(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function startOfTodayInTimezone(timezone: string): Date {
+  const now = new Date();
+  const parts = getZonedParts(now, timezone);
+  const utcMidnight = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0));
+  return new Date(utcMidnight.getTime() - getTimezoneOffsetMs(utcMidnight, timezone));
+}
+
+function getTimezoneOffsetMs(date: Date, timezone: string): number {
+  const parts = getZonedParts(date, timezone);
+  const zonedAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+  return zonedAsUtc - date.getTime();
+}
+
+function getZonedParts(
+  date: Date,
+  timezone: string
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour ?? 0),
+    minute: Number(parts.minute ?? 0),
+    second: Number(parts.second ?? 0)
   };
 }

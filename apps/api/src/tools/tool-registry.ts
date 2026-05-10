@@ -160,8 +160,12 @@ export class ToolRegistry {
       timeMin,
       timeMax,
       durationMinutes: this.deps.client.defaultShowingDurationMinutes,
-      timezone: this.deps.client.timezone
+      timezone: this.deps.client.timezone,
+      maxSlots: 10
     });
+    const spokenOptions = slots.map((slot) => formatSlotForSpeech(slot, this.deps.client.timezone));
+    const earliestSlot = slots[0];
+    const latestSlot = slots.at(-1);
 
     return {
       ok: true,
@@ -169,10 +173,18 @@ export class ToolRegistry {
       calendar_id: calendarId,
       timezone: this.deps.client.timezone,
       slots,
-      spoken_options: slots.map((slot) => formatSlotForSpeech(slot, this.deps.client.timezone)),
+      spoken_options: spokenOptions,
+      earliest_slot: earliestSlot,
+      earliest_option: earliestSlot
+        ? formatSlotForSpeech(earliestSlot, this.deps.client.timezone)
+        : undefined,
+      latest_slot: latestSlot,
+      latest_option: latestSlot
+        ? formatSlotForSpeech(latestSlot, this.deps.client.timezone)
+        : undefined,
       message:
         slots.length > 0
-          ? "Offer two or three of these options and ask which works best."
+          ? "Offer two or three of these options and ask which works best. If the caller asked for the earliest or latest time, answer using earliest_option or latest_option."
           : "No open showing slots were found in the requested window. Collect a preferred time and say the office will follow up."
     };
   }

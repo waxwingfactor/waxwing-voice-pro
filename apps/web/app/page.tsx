@@ -1,42 +1,68 @@
 import {
   CalendarCheck,
   CheckCircle2,
+  Clock3,
   FileAudio,
   Mail,
   MapPinned,
   PhoneCall,
   ShieldCheck,
-  TriangleAlert
+  TriangleAlert,
+  UserRoundCheck
 } from "lucide-react";
 
-const calls = [
-  {
-    id: "01HXCALL7ZH3",
-    caller: "Jessica M.",
-    property: "152 Navarro Crossing",
-    status: "Qualified",
-    showing: "Booked",
-    time: "9:42 AM"
-  },
-  {
-    id: "01HXCALL82AF",
-    caller: "Unknown",
-    property: "109 Clear Water",
-    status: "Needs follow-up",
-    showing: "Requested",
-    time: "10:18 AM"
-  },
-  {
-    id: "01HXCALL8K9Q",
-    caller: "Maintenance",
-    property: "No property",
-    status: "Transferred",
-    showing: "None",
-    time: "11:03 AM"
-  }
-];
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
+interface DashboardData {
+  client: {
+    name: string;
+    timezone: string;
+    managerEmails?: string[];
+  };
+  metrics: {
+    callsToday: number;
+    qualifiedLeadsToday: number;
+    showingsBookedToday: number;
+    followUpsToday: number;
+    complianceEventsToday: number;
+  };
+  counts: {
+    activeProperties: number;
+    calendarConnections: number;
+  };
+  calendarConnections: Array<{
+    calendarId: string;
+    googleAccountEmail: string;
+    connectedAt: string;
+  }>;
+  recentCalls: Array<{
+    id: string;
+    startedAt: string;
+    status: string;
+    outcome?: string;
+    callerName?: string;
+    callerPhone?: string;
+    propertyAddress?: string;
+    qualificationStatus?: string;
+    showingRequested: boolean;
+    callbackRequested: boolean;
+    complianceEventCount: number;
+  }>;
+  integrations: {
+    api: boolean;
+    twilio: boolean;
+    gemini: boolean;
+    resend: boolean;
+    googleCalendar: boolean;
+    miro: boolean;
+  };
+  generatedAt: string;
+}
+
+export default async function DashboardPage() {
+  const result = await getDashboard();
+  const data = result.ok ? result.data : fallbackDashboard();
+
   return (
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
@@ -66,28 +92,54 @@ export default function DashboardPage() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Hunter Property Management</p>
+            <p className="eyebrow">{data.client.name}</p>
             <h1>Leasing Voice Operations</h1>
+            <p className="subtle">
+              Updated {formatDateTime(data.generatedAt, data.client.timezone)}
+            </p>
           </div>
-          <button type="button" className="iconButton" aria-label="Send test email">
+          <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
             <Mail size={20} aria-hidden />
-          </button>
+          </a>
         </header>
 
+        {!result.ok ? (
+          <section className="notice" role="status">
+            <TriangleAlert size={20} aria-hidden />
+            <span>{result.error}</span>
+          </section>
+        ) : null}
+
         <section className="metrics" id="overview" aria-label="Call metrics">
-          <Metric icon={<PhoneCall size={20} />} label="Calls today" value="18" />
-          <Metric icon={<CheckCircle2 size={20} />} label="Qualified leads" value="7" />
-          <Metric icon={<CalendarCheck size={20} />} label="Showings booked" value="4" />
-          <Metric icon={<TriangleAlert size={20} />} label="Knowledge gaps" value="3" />
+          <Metric
+            icon={<PhoneCall size={20} />}
+            label="Calls today"
+            value={String(data.metrics.callsToday)}
+          />
+          <Metric
+            icon={<UserRoundCheck size={20} />}
+            label="Qualified leads"
+            value={String(data.metrics.qualifiedLeadsToday)}
+          />
+          <Metric
+            icon={<CalendarCheck size={20} />}
+            label="Showings booked"
+            value={String(data.metrics.showingsBookedToday)}
+          />
+          <Metric
+            icon={<Clock3 size={20} />}
+            label="Follow-ups"
+            value={String(data.metrics.followUpsToday)}
+          />
         </section>
 
         <section className="band" id="calls">
           <div className="sectionHeader">
             <div>
               <h2>Recent Calls</h2>
-              <p>Structured logs, transcripts, raw audio, and post-call delivery status.</p>
+              <p>Live call records from Supabase, including lead and showing status.</p>
             </div>
-            <button type="button">Export</button>
+            <span className="pill">{data.counts.activeProperties} active properties</span>
           </div>
           <div className="table" role="table" aria-label="Recent calls">
             <div className="row header" role="row">
@@ -97,15 +149,19 @@ export default function DashboardPage() {
               <span>Status</span>
               <span>Showing</span>
             </div>
-            {calls.map((call) => (
-              <div className="row" role="row" key={call.id}>
-                <span>{call.time}</span>
-                <span>{call.caller}</span>
-                <span>{call.property}</span>
-                <span>{call.status}</span>
-                <span>{call.showing}</span>
-              </div>
-            ))}
+            {data.recentCalls.length > 0 ? (
+              data.recentCalls.map((call) => (
+                <div className="row" role="row" key={call.id}>
+                  <span>{formatTime(call.startedAt, data.client.timezone)}</span>
+                  <span title={call.callerPhone}>{call.callerName ?? "Unknown"}</span>
+                  <span>{call.propertyAddress ?? "Not captured"}</span>
+                  <span>{call.qualificationStatus ?? call.outcome ?? call.status}</span>
+                  <span>{showingLabel(call)}</span>
+                </div>
+              ))
+            ) : (
+              <div className="emptyRow">No calls have been logged yet today.</div>
+            )}
           </div>
         </section>
 
@@ -113,34 +169,36 @@ export default function DashboardPage() {
           <div className="panel" id="calendar">
             <h2>Connection Health</h2>
             <ul className="statusList">
-              <li>
-                <CheckCircle2 size={18} aria-hidden />
-                Twilio number connected
-              </li>
-              <li>
-                <CheckCircle2 size={18} aria-hidden />
-                Resend domain verified
-              </li>
-              <li>
-                <TriangleAlert size={18} aria-hidden />
-                Google Calendar needs client OAuth
-              </li>
-              <li>
-                <TriangleAlert size={18} aria-hidden />
-                Miro board token pending
-              </li>
+              <StatusItem ok={data.integrations.twilio} label="Twilio voice credentials" />
+              <StatusItem ok={data.integrations.gemini} label="Gemini Live configured" />
+              <StatusItem ok={data.integrations.resend} label="Resend email configured" />
+              <StatusItem
+                ok={data.integrations.googleCalendar}
+                label={`${data.counts.calendarConnections} Google Calendar connection${
+                  data.counts.calendarConnections === 1 ? "" : "s"
+                }`}
+              />
+              <StatusItem ok={data.integrations.miro} label="Miro sync optional" />
             </ul>
+            {data.calendarConnections.length > 0 ? (
+              <div className="connectionCard">
+                <strong>{data.calendarConnections[0].googleAccountEmail}</strong>
+                <span>{data.calendarConnections[0].calendarId}</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="panel" id="compliance">
             <h2>Fair Housing Guardrails</h2>
             <p>
-              The agent uses the same rental criteria for each interested caller and blocks
-              protected-class-sensitive steering or approval promises.
+              Calls are tracked for protected-class-sensitive requests and other review events.
             </p>
             <div className="callout">
               <ShieldCheck size={22} aria-hidden />
-              <span>0 unresolved compliance review items today</span>
+              <span>
+                {data.metrics.complianceEventsToday} compliance review item
+                {data.metrics.complianceEventsToday === 1 ? "" : "s"} today
+              </span>
             </div>
           </div>
         </section>
@@ -165,4 +223,101 @@ function Metric({
       <strong>{value}</strong>
     </div>
   );
+}
+
+function StatusItem({ ok, label }: { ok: boolean; label: string }) {
+  const Icon = ok ? CheckCircle2 : TriangleAlert;
+  return (
+    <li className={ok ? "ok" : "warn"}>
+      <Icon size={18} aria-hidden />
+      {label}
+    </li>
+  );
+}
+
+async function getDashboard(): Promise<
+  | { ok: true; data: DashboardData }
+  | { ok: false; error: string }
+> {
+  const baseUrl = process.env.API_BASE_URL ?? "http://localhost:8787";
+  const url = new URL("/dashboard", baseUrl);
+  url.searchParams.set("client_slug", process.env.DASHBOARD_CLIENT_SLUG ?? "default");
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: process.env.DASHBOARD_API_KEY
+        ? { Authorization: `Bearer ${process.env.DASHBOARD_API_KEY}` }
+        : undefined
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: `Dashboard API returned ${response.status}. Check API_BASE_URL and DASHBOARD_API_KEY.`
+      };
+    }
+
+    return { ok: true, data: (await response.json()) as DashboardData };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Dashboard API is unavailable: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    };
+  }
+}
+
+function fallbackDashboard(): DashboardData {
+  return {
+    client: { name: "Waxwing Voice Pro", timezone: "America/Chicago" },
+    metrics: {
+      callsToday: 0,
+      qualifiedLeadsToday: 0,
+      showingsBookedToday: 0,
+      followUpsToday: 0,
+      complianceEventsToday: 0
+    },
+    counts: { activeProperties: 0, calendarConnections: 0 },
+    calendarConnections: [],
+    recentCalls: [],
+    integrations: {
+      api: false,
+      twilio: false,
+      gemini: false,
+      resend: false,
+      googleCalendar: false,
+      miro: false
+    },
+    generatedAt: new Date().toISOString()
+  };
+}
+
+function formatDateTime(value: string, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatTime(value: string, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function showingLabel(call: DashboardData["recentCalls"][number]): string {
+  if (call.outcome === "showing_booked") return "Booked";
+  if (call.showingRequested) return "Requested";
+  return "None";
+}
+
+function firstManagerEmail(data: DashboardData): string {
+  return data.client.managerEmails?.[0] ?? "alex@waxwingfactory.com";
 }

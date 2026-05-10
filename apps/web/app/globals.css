@@ -119,6 +119,11 @@ p {
   color: var(--muted);
 }
 
+.subtle {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
 .iconButton,
 button {
   min-height: 40px;
@@ -140,8 +145,24 @@ button {
   padding: 0;
 }
 
+a.iconButton {
+  text-decoration: none;
+}
+
 .metrics {
   margin: 28px 0;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid #e6c58b;
+  border-radius: 8px;
+  background: #fff8ec;
+  color: #664000;
 }
 
 .metric,
@@ -186,6 +207,18 @@ button {
   padding: 20px;
 }
 
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #b9ded1;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .table {
   display: grid;
   margin-top: 18px;
@@ -221,6 +254,12 @@ button {
   font-weight: 700;
 }
 
+.emptyRow {
+  min-height: 64px;
+  padding: 20px;
+  color: var(--muted);
+}
+
 .split {
   margin-top: 18px;
 }
@@ -251,8 +290,22 @@ button {
   flex: 0 0 auto;
 }
 
-.statusList li:nth-child(n + 3) svg {
+.statusList li.warn svg {
   color: var(--warn);
+}
+
+.connectionCard {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.connectionCard span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .callout {
