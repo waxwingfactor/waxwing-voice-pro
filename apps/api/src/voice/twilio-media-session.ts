@@ -126,8 +126,17 @@ export class TwilioMediaSession {
             this.deps.log.error({ error: closeError }, "Failed to close Gemini error session");
           });
         },
-        onClose: () => {
-          this.deps.log.debug("Gemini Live session closed");
+        onClose: (event) => {
+          const closeMessage = geminiCloseToMessage(event);
+          this.deps.log.warn({ event }, `Gemini Live session closed: ${closeMessage}`);
+          this.failAndClose(new Error(`Gemini Live session closed: ${closeMessage}`)).catch(
+            (closeError) => {
+              this.deps.log.error(
+                { error: closeError },
+                "Failed to close Gemini closed session"
+              );
+            }
+          );
         }
       }
     );
@@ -232,6 +241,16 @@ function errorToMessage(error: unknown): string {
     }
   }
   return String(error);
+}
+
+function geminiCloseToMessage(event: unknown): string {
+  if (typeof event === "object" && event) {
+    const record = event as Record<string, unknown>;
+    const code = record.code ? `code ${String(record.code)}` : "no code";
+    const reason = record.reason ? String(record.reason) : "no reason";
+    return `${code}, ${reason}`;
+  }
+  return event ? String(event) : "no close event";
 }
 
 type TwilioMessage =

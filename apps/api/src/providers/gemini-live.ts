@@ -1,9 +1,4 @@
-import {
-  EndSensitivity,
-  GoogleGenAI,
-  Modality,
-  StartSensitivity
-} from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { buildSystemInstruction } from "@waxwing/core";
 import { getToolDeclarations } from "../tools/tool-declarations.js";
 
@@ -13,7 +8,7 @@ export interface GeminiLiveHandlers {
   onOutputTranscript(text: string): void;
   onToolCall(call: { id?: string; name: string; args: Record<string, unknown> }): Promise<void>;
   onError(error: unknown): void;
-  onClose(): void;
+  onClose(event?: unknown): void;
 }
 
 export interface GeminiLiveSession {
@@ -51,7 +46,7 @@ export class GeminiLiveClient {
           this.handleMessage(message, handlers).catch(handlers.onError);
         },
         onerror: (event: unknown) => handlers.onError(event),
-        onclose: () => handlers.onClose()
+        onclose: (event: unknown) => handlers.onClose(event)
       },
       config: {
         responseModalities: [Modality.AUDIO],
@@ -61,17 +56,6 @@ export class GeminiLiveClient {
         }),
         inputAudioTranscription: {},
         outputAudioTranscription: {},
-        enableAffectiveDialog: true,
-        proactivity: { proactiveAudio: true },
-        realtimeInputConfig: {
-          automaticActivityDetection: {
-            disabled: false,
-            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
-            endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
-            prefixPaddingMs: 20,
-            silenceDurationMs: 700
-          }
-        },
         tools: [{ functionDeclarations: getToolDeclarations() }]
       }
     });
