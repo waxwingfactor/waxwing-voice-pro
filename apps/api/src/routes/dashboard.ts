@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { AppRepository } from "@waxwing/db";
+import type { AppRepository, ArtifactStorage } from "@waxwing/db";
 import type { AppEnv } from "../config/env.js";
 
 export function registerDashboardRoutes(
@@ -7,6 +7,7 @@ export function registerDashboardRoutes(
   deps: {
     env: AppEnv;
     repository: AppRepository;
+    storage: ArtifactStorage;
   }
 ): void {
   app.get("/dashboard", async (request, reply) => {
@@ -18,9 +19,21 @@ export function registerDashboardRoutes(
     if (!snapshot) {
       return reply.code(404).send({ error: `Client not found: ${clientSlug}` });
     }
+    const recentCalls = await Promise.all(
+      snapshot.recentCalls.map(async (call) => ({
+        ...call,
+        audioFiles: await Promise.all(
+          call.audioFiles.map(async (file) => ({
+            ...file,
+            signedUrl: await createSignedAudioUrl(file.storagePath, deps.storage, app.log)
+          }))
+        )
+      }))
+    );
 
     return {
       ...snapshot,
+      recentCalls,
       integrations: {
         api: true,
         twilio: Boolean(deps.env.TWILIO_ACCOUNT_SID && deps.env.TWILIO_AUTH_TOKEN),
@@ -32,6 +45,19 @@ export function registerDashboardRoutes(
       generatedAt: new Date().toISOString()
     };
   });
+}
+
+async function createSignedAudioUrl(
+  storagePath: string,
+  storage: ArtifactStorage,
+  log: FastifyInstance["log"]
+): Promise<string | undefined> {
+  try {
+    return await storage.createSignedUrl(storagePath, 60 * 60 * 8);
+  } catch (error) {
+    log.warn({ error, storagePath }, "Unable to create dashboard audio URL");
+    return undefined;
+  }
 }
 
 function authorizeDashboardRequest(

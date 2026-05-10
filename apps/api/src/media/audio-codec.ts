@@ -47,6 +47,34 @@ export function geminiPcm24ToTwilioBase64MuLaw(pcm24: Buffer): string {
   return encodePcm16ToMuLaw(downsample24kTo8k(pcm24)).toString("base64");
 }
 
+export function muLaw8kToWav(muLaw: Buffer): Buffer {
+  return pcm16ToWav(decodeMuLawToPcm16(muLaw), 8000);
+}
+
+function pcm16ToWav(pcm16: Buffer, sampleRate: number): Buffer {
+  const channelCount = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * channelCount * (bitsPerSample / 8);
+  const blockAlign = channelCount * (bitsPerSample / 8);
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm16.byteLength, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channelCount, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm16.byteLength, 40);
+
+  return Buffer.concat([header, pcm16]);
+}
+
 function muLawToLinear(value: number): number {
   const muLaw = ~value & 0xff;
   const sign = muLaw & 0x80;

@@ -9,10 +9,19 @@ import type {
 
 export interface CallAudioFileInput {
   callId: string;
-  kind: "inbound_raw_ulaw" | "outbound_raw_ulaw" | "mixed_wav" | "metadata";
+  kind: "inbound_raw_ulaw" | "outbound_raw_ulaw" | "inbound_wav" | "outbound_wav" | "mixed_wav" | "metadata";
   storagePath: string;
   mimeType: string;
   byteSize: number;
+}
+
+export interface DashboardCallAudioFile {
+  kind: string;
+  storagePath: string;
+  mimeType: string;
+  byteSize: number;
+  createdAt: string;
+  signedUrl?: string;
 }
 
 export interface PostCallPackage {
@@ -44,6 +53,10 @@ export interface DashboardRecentCall {
   showingRequested: boolean;
   callbackRequested: boolean;
   complianceEventCount: number;
+  lead: Record<string, unknown>;
+  qualification?: QualificationResult;
+  transcript: CallSnapshot["transcript"];
+  audioFiles: DashboardCallAudioFile[];
 }
 
 export interface DashboardRepositorySnapshot {
@@ -143,7 +156,9 @@ export class SupabaseAppRepository implements AppRepository {
       await Promise.all([
         this.supabase
           .from("calls")
-          .select("id, started_at, status, outcome, lead, qualification, compliance_events")
+          .select(
+            "id, started_at, status, outcome, lead, qualification, compliance_events, transcript, call_audio_files(kind, storage_path, mime_type, byte_size, created_at)"
+          )
           .eq("client_id", client.id)
           .gte("started_at", startOfToday)
           .order("started_at", { ascending: false })
@@ -487,7 +502,19 @@ function mapDashboardCall(row: Record<string, any>): DashboardRecentCall {
     qualificationStatus: row.qualification?.qualifiedToApply ?? undefined,
     showingRequested: lead.showingRequested === true,
     callbackRequested: lead.callbackRequested === true,
-    complianceEventCount: complianceEventCount(row.compliance_events)
+    complianceEventCount: complianceEventCount(row.compliance_events),
+    lead,
+    qualification: row.qualification ?? undefined,
+    transcript: Array.isArray(row.transcript) ? row.transcript : [],
+    audioFiles: Array.isArray(row.call_audio_files)
+      ? row.call_audio_files.map((file: Record<string, any>) => ({
+          kind: file.kind,
+          storagePath: file.storage_path,
+          mimeType: file.mime_type,
+          byteSize: file.byte_size,
+          createdAt: file.created_at
+        }))
+      : []
   };
 }
 

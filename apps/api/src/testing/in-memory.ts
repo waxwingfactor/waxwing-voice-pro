@@ -99,7 +99,11 @@ export class InMemoryRepository implements AppRepository {
         qualificationStatus: call.qualification?.qualifiedToApply,
         showingRequested: call.lead.showingRequested === true,
         callbackRequested: call.lead.callbackRequested === true,
-        complianceEventCount: call.complianceEvents.length
+        complianceEventCount: call.complianceEvents.length,
+        lead: call.lead as unknown as Record<string, unknown>,
+        qualification: call.qualification,
+        transcript: call.transcript,
+        audioFiles: []
       })),
       counts: {
         activeProperties: properties.length,

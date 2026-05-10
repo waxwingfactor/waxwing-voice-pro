@@ -1,4 +1,5 @@
 import type { AppRepository, ArtifactStorage } from "@waxwing/db";
+import { muLaw8kToWav } from "./audio-codec.js";
 
 export class CallAudioRecorder {
   private inbound: Buffer[] = [];
@@ -25,6 +26,13 @@ export class CallAudioRecorder {
       path: `calls/${params.callId}/audio/inbound.raw.ulaw`
     });
     storedPaths.push(`calls/${params.callId}/audio/inbound.raw.ulaw`);
+    await this.storePlayableTrack({
+      ...params,
+      kind: "inbound_wav",
+      chunks: this.inbound,
+      path: `calls/${params.callId}/audio/inbound.wav`
+    });
+    storedPaths.push(`calls/${params.callId}/audio/inbound.wav`);
 
     await this.storeTrack({
       ...params,
@@ -33,6 +41,13 @@ export class CallAudioRecorder {
       path: `calls/${params.callId}/audio/outbound.raw.ulaw`
     });
     storedPaths.push(`calls/${params.callId}/audio/outbound.raw.ulaw`);
+    await this.storePlayableTrack({
+      ...params,
+      kind: "outbound_wav",
+      chunks: this.outbound,
+      path: `calls/${params.callId}/audio/outbound.wav`
+    });
+    storedPaths.push(`calls/${params.callId}/audio/outbound.wav`);
 
     const metadataPath = `calls/${params.callId}/audio/metadata.json`;
     const metadata = Buffer.from(
@@ -77,6 +92,25 @@ export class CallAudioRecorder {
       kind: params.kind,
       storagePath: params.path,
       mimeType: "application/octet-stream",
+      byteSize: body.byteLength
+    });
+  }
+
+  private async storePlayableTrack(params: {
+    callId: string;
+    storage: ArtifactStorage;
+    repository: AppRepository;
+    kind: "inbound_wav" | "outbound_wav";
+    chunks: Buffer[];
+    path: string;
+  }): Promise<void> {
+    const body = muLaw8kToWav(Buffer.concat(params.chunks));
+    await params.storage.upload(params.path, body, "audio/wav");
+    await params.repository.recordCallAudio({
+      callId: params.callId,
+      kind: params.kind,
+      storagePath: params.path,
+      mimeType: "audio/wav",
       byteSize: body.byteLength
     });
   }

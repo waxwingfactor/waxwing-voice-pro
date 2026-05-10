@@ -80,7 +80,7 @@ export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
   });
 
   registerHealthRoutes(app);
-  registerDashboardRoutes(app, { env, repository });
+  registerDashboardRoutes(app, { env, repository, storage });
   registerOAuthRoutes(app, { env, calendar, repository, tokenVault });
   registerTwilioRoutes(app, {
     env,

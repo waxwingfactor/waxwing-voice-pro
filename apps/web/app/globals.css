@@ -260,6 +260,242 @@ a.iconButton {
   color: var(--muted);
 }
 
+.compactTable {
+  margin-bottom: 18px;
+}
+
+.callStack {
+  display: grid;
+  gap: 12px;
+}
+
+.callRecord {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfd;
+  overflow: hidden;
+}
+
+.callRecord summary {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 66px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.callRecord summary::-webkit-details-marker {
+  display: none;
+}
+
+.callRecord[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: #f3f8f6;
+}
+
+.summaryIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e4f3ed;
+  color: var(--accent-strong);
+}
+
+.callRecord strong,
+.callRecord small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.callRecord small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.summaryStatus {
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #b9ded1;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.callDetailGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.detailBlock {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.audioBlock {
+  align-self: start;
+}
+
+.transcriptBlock {
+  grid-column: 1 / -1;
+}
+
+.blockTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--accent-strong);
+}
+
+.blockTitle h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.audioList {
+  display: grid;
+  gap: 12px;
+}
+
+.audioTrack {
+  display: grid;
+  gap: 8px;
+}
+
+.audioTrack div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audioTrack span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.audioTrack audio {
+  width: 100%;
+  height: 38px;
+}
+
+.archiveLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.archiveLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.infoGrid div {
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.infoGrid dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.infoGrid dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.transcript {
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  padding: 2px 4px 2px 0;
+  margin: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.transcript li {
+  max-width: 78%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.transcript li.agent {
+  justify-self: end;
+  border-color: #b9ded1;
+  background: #eef9f4;
+}
+
+.transcript li.system {
+  max-width: 100%;
+  border-color: #e6c58b;
+  background: #fff8ec;
+}
+
+.transcript li div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.transcript time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.transcript p,
+.emptyState {
+  margin: 0;
+}
+
+.emptyState {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fafcfc;
+  color: var(--muted);
+}
+
 .split {
   margin-top: 18px;
 }
@@ -347,5 +583,25 @@ a.iconButton {
 
   .row span:nth-child(n + 3) {
     grid-column: 2;
+  }
+
+  .callRecord summary,
+  .callDetailGrid,
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryIcon,
+  .summaryStatus {
+    justify-self: start;
+  }
+
+  .callRecord strong,
+  .callRecord small {
+    white-space: normal;
+  }
+
+  .transcript li {
+    max-width: 100%;
   }
 }
