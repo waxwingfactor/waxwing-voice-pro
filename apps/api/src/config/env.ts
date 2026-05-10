@@ -52,6 +52,7 @@ const envSchema = z.object({
   MIRO_REDIRECT_URI: optionalUrl,
   MIRO_DEFAULT_BOARD_ID: optionalString,
   MIRO_ACCESS_TOKEN: optionalString,
+  MIRO_REFRESH_TOKEN: optionalString,
   MIRO_WEBHOOK_SECRET: optionalString
 });
 

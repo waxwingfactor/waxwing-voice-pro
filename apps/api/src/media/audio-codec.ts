@@ -51,7 +51,7 @@ export function muLaw8kToWav(muLaw: Buffer): Buffer {
   return pcm16ToWav(decodeMuLawToPcm16(muLaw), 8000);
 }
 
-function pcm16ToWav(pcm16: Buffer, sampleRate: number): Buffer {
+export function pcm16ToWav(pcm16: Buffer, sampleRate: number): Buffer {
   const channelCount = 1;
   const bitsPerSample = 16;
   const byteRate = sampleRate * channelCount * (bitsPerSample / 8);

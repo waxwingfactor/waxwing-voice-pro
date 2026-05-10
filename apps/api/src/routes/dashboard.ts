@@ -40,7 +40,10 @@ export function registerDashboardRoutes(
         gemini: Boolean(deps.env.GEMINI_API_KEY),
         resend: Boolean(deps.env.RESEND_API_KEY),
         googleCalendar: snapshot.counts.calendarConnections > 0,
-        miro: Boolean(deps.env.MIRO_ACCESS_TOKEN && deps.env.MIRO_DEFAULT_BOARD_ID)
+        miro: Boolean(
+          deps.env.MIRO_DEFAULT_BOARD_ID &&
+            (deps.env.MIRO_ACCESS_TOKEN || deps.env.MIRO_REFRESH_TOKEN)
+        )
       },
       generatedAt: new Date().toISOString()
     };

@@ -262,7 +262,29 @@ https://your-api-domain.com/miro/oauth/callback
 
 ### Miro Access Token
 
-V1 supports the provider boundary for Miro writes. For production, complete the OAuth callback storage so each client has an encrypted Miro access token. During internal testing, an approved developer access token can be added as `MIRO_ACCESS_TOKEN`.
+After setting `MIRO_CLIENT_ID`, `MIRO_CLIENT_SECRET`, `MIRO_REDIRECT_URI`, and
+`MIRO_DEFAULT_BOARD_ID`, visit:
+
+```text
+https://your-api-domain.com/miro/oauth/start
+```
+
+Approve the app in Miro. The callback will return:
+
+```env
+MIRO_ACCESS_TOKEN=...
+MIRO_REFRESH_TOKEN=...
+```
+
+Add both values to Render. `MIRO_ACCESS_TOKEN` can expire, but
+`MIRO_REFRESH_TOKEN` lets the app request a fresh access token for future Miro
+exports.
+
+For your Render API, the start URL is:
+
+```text
+https://waxwing-voice-pro.onrender.com/miro/oauth/start
+```
 
 ## Owner/Admin Email
 

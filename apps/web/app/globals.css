@@ -423,6 +423,13 @@ a.iconButton {
   gap: 8px;
 }
 
+.primaryAudioTrack {
+  padding: 14px;
+  border: 1px solid #b9ded1;
+  border-radius: 8px;
+  background: #eef9f4;
+}
+
 .audioTrack div {
   display: flex;
   align-items: baseline;
@@ -445,6 +452,22 @@ a.iconButton {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 4px;
+}
+
+.archiveDetails {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.archiveDetails summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.archiveDetails[open] summary {
+  margin-bottom: 8px;
 }
 
 .archiveLinks a {

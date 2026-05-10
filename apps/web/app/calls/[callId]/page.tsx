@@ -184,32 +184,49 @@ function RecordingPlayers({ call }: { call: DashboardCall }) {
   const playableFiles = call.audioFiles.filter(
     (file) => file.signedUrl && file.mimeType.startsWith("audio/") && file.kind.endsWith("_wav")
   );
-  const archivedFiles = call.audioFiles.filter((file) => file.signedUrl && !file.kind.endsWith("_wav"));
+  const primaryFile =
+    playableFiles.find((file) => file.kind === "mixed_wav") ?? playableFiles[0];
+  const secondaryFiles = call.audioFiles.filter(
+    (file) => file.signedUrl && file.storagePath !== primaryFile?.storagePath
+  );
 
-  if (playableFiles.length === 0 && archivedFiles.length === 0) {
-    return <p className="emptyState">No recording is available yet.</p>;
+  if (!primaryFile && secondaryFiles.length === 0) {
+    return (
+      <p className="emptyState">
+        No conversation recording is available yet. New calls will include one playable
+        conversation track.
+      </p>
+    );
   }
 
   return (
     <div className="audioList">
-      {playableFiles.map((file) => (
-        <div className="audioTrack" key={file.storagePath}>
+      {primaryFile ? (
+        <div className="audioTrack primaryAudioTrack">
           <div>
-            <strong>{audioLabel(file.kind)}</strong>
-            <span>{formatBytes(file.byteSize)}</span>
+            <strong>{audioLabel(primaryFile.kind)}</strong>
+            <span>{formatBytes(primaryFile.byteSize)}</span>
           </div>
-          <audio controls preload="none" src={file.signedUrl} />
+          <audio controls preload="none" src={primaryFile.signedUrl} />
         </div>
-      ))}
-      {archivedFiles.length > 0 ? (
-        <div className="archiveLinks">
-          {archivedFiles.map((file) => (
-            <a href={file.signedUrl} key={file.storagePath}>
-              <Download size={15} aria-hidden />
-              {audioLabel(file.kind)}
-            </a>
-          ))}
-        </div>
+      ) : (
+        <p className="emptyState">
+          This older call only has archived raw files. New calls will show one playable
+          conversation track here.
+        </p>
+      )}
+      {secondaryFiles.length > 0 ? (
+        <details className="archiveDetails">
+          <summary>More audio files</summary>
+          <div className="archiveLinks">
+            {secondaryFiles.map((file) => (
+              <a href={file.signedUrl} key={file.storagePath}>
+                <Download size={15} aria-hidden />
+                {audioLabel(file.kind)}
+              </a>
+            ))}
+          </div>
+        </details>
       ) : null}
     </div>
   );
@@ -360,6 +377,7 @@ function speakerLabel(speaker: "caller" | "agent" | "system"): string {
 
 function audioLabel(kind: string): string {
   const labels: Record<string, string> = {
+    mixed_wav: "Conversation recording",
     inbound_wav: "Caller audio",
     outbound_wav: "Agent audio",
     inbound_raw_ulaw: "Caller raw archive",

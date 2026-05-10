@@ -102,12 +102,14 @@ Expected verification:
 
 1. Create the client Miro board.
 2. Add board ID to configuration.
-3. Complete OAuth access token storage.
+3. Visit `/miro/oauth/start`, approve the app, and add the returned
+   `MIRO_ACCESS_TOKEN` and `MIRO_REFRESH_TOKEN` to Render.
 4. Place a test call.
 
 Expected verification:
 
-- A Miro lead item is created.
+- A Miro call frame is created with summary, next action, captured info,
+  transcript excerpt, and audio links.
 - Failed Miro sync is recorded without blocking email if token is missing.
 
 ## Test Call Script

@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppRepository } from "@waxwing/db";
 import type { AppEnv } from "../config/env.js";
 import type { GoogleCalendarProvider } from "../providers/google-calendar.js";
+import { exchangeMiroCode } from "../providers/miro.js";
 import type { TokenVault } from "../security/token-vault.js";
 
 export function registerOAuthRoutes(
@@ -118,6 +119,37 @@ export function registerOAuthRoutes(
       scope: "boards:read boards:write"
     });
     return reply.redirect(`https://miro.com/oauth/authorize?${params.toString()}`);
+  });
+
+  app.get("/miro/oauth/callback", async (request, reply) => {
+    const query = request.query as Record<string, string | undefined>;
+    const code = query.code;
+    if (!code) return reply.code(400).send({ error: "Missing Miro OAuth code." });
+    if (!deps.env.MIRO_CLIENT_ID || !deps.env.MIRO_CLIENT_SECRET || !deps.env.MIRO_REDIRECT_URI) {
+      return reply.code(501).send({
+        error: "Miro OAuth is not configured. See docs/secrets-setup.md."
+      });
+    }
+
+    const tokens = await exchangeMiroCode({
+      clientId: deps.env.MIRO_CLIENT_ID,
+      clientSecret: deps.env.MIRO_CLIENT_SECRET,
+      redirectUri: deps.env.MIRO_REDIRECT_URI,
+      code
+    });
+
+    return reply.send({
+      connected: true,
+      message:
+        "Copy MIRO_ACCESS_TOKEN and MIRO_REFRESH_TOKEN into Render. The refresh token lets the app create fresh access tokens for future Miro exports.",
+      env: {
+        MIRO_ACCESS_TOKEN: tokens.accessToken,
+        MIRO_REFRESH_TOKEN: tokens.refreshToken
+      },
+      expires_in: tokens.expiresIn,
+      scope: tokens.scope,
+      token_type: tokens.tokenType
+    });
   });
 }
 

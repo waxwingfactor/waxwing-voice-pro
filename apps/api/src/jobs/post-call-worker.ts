@@ -65,7 +65,9 @@ export class PostCallWorker {
         boardId: result.boardId,
         itemId: result.itemId,
         status: result.itemId ? "synced" : "failed",
-        errorMessage: result.itemId ? undefined : "Miro access token or board ID not configured."
+        errorMessage: result.itemId
+          ? undefined
+          : "Miro board ID and token or refresh token are not configured."
       });
     } catch (error) {
       await this.deps.repository.recordMiroExport({

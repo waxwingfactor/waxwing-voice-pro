@@ -68,7 +68,11 @@ export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
   });
 
   const miro = new MiroProvider({
-    defaultBoardId: env.MIRO_DEFAULT_BOARD_ID
+    defaultBoardId: env.MIRO_DEFAULT_BOARD_ID,
+    accessToken: env.MIRO_ACCESS_TOKEN,
+    refreshToken: env.MIRO_REFRESH_TOKEN,
+    clientId: env.MIRO_CLIENT_ID,
+    clientSecret: env.MIRO_CLIENT_SECRET
   });
 
   const postCallWorker = new PostCallWorker({
