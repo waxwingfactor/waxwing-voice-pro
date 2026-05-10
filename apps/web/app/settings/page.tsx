@@ -1,9 +1,12 @@
 import {
+  Bell,
   CalendarCheck,
   CheckCircle2,
   FileAudio,
+  Home,
   Mail,
   MapPinned,
+  Mic2,
   PhoneCall,
   ShieldCheck,
   SlidersHorizontal,
@@ -45,12 +48,13 @@ export default async function SettingsPage() {
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
-          <PhoneCall size={24} aria-hidden />
-          <span>Waxwing Voice Pro</span>
+          <span className="brandMark">WV</span>
+          <span>Waxwing Voice</span>
         </div>
+        <p className="navSection">Workspace</p>
         <nav>
           <a href="/">
-            <CheckCircle2 size={18} aria-hidden /> Overview
+            <Home size={18} aria-hidden /> Dashboard
           </a>
           <a href="/calls">
             <FileAudio size={18} aria-hidden /> Calls
@@ -58,6 +62,9 @@ export default async function SettingsPage() {
           <a className="active" href="/settings">
             <SlidersHorizontal size={18} aria-hidden /> Settings
           </a>
+        </nav>
+        <p className="navSection">Configure</p>
+        <nav>
           <a href="/#calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
@@ -68,20 +75,34 @@ export default async function SettingsPage() {
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
+        <div className="agentCard">
+          <span className="listenOrb" />
+          <strong>{data.settings.agentName}</strong>
+          <small>Listening for calls</small>
+          <span>{data.settings.voiceName} · {data.settings.pace}</span>
+        </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{data.client.name}</p>
-            <h1>Voice Agent Settings</h1>
+            <h1>Voice</h1>
             <p className="subtle">
               Control how the leasing agent sounds, greets callers, and qualifies leads.
             </p>
           </div>
-          <a className="iconButton" href="mailto:alex@waxwingfactory.com" aria-label="Email support">
-            <Mail size={20} aria-hidden />
-          </a>
+          <div className="topActions">
+            <span className="listeningBadge">
+              <span className="listenOrb" /> Agent is listening
+            </span>
+            <button className="iconButton" aria-label="Notifications">
+              <Bell size={20} aria-hidden />
+            </button>
+            <a className="iconButton" href="mailto:alex@waxwingfactory.com" aria-label="Email support">
+              <Mail size={20} aria-hidden />
+            </a>
+            <span className="avatar">WV</span>
+          </div>
         </header>
 
         {!result.ok ? (
@@ -92,11 +113,39 @@ export default async function SettingsPage() {
         ) : null}
 
         <form action={saveSettings} className="settingsForm">
+          <section className="voiceGrid">
+            {data.voiceOptions.map((voice, index) => (
+              <label
+                className={
+                  voice.name === data.settings.voiceName ? "voiceCard selected" : "voiceCard"
+                }
+                key={voice.name}
+              >
+                <input
+                  name="voiceName"
+                  type="radio"
+                  value={voice.name}
+                  defaultChecked={voice.name === data.settings.voiceName}
+                />
+                <span className={`voiceIcon tone${index % 6}`}>
+                  <Mic2 size={30} aria-hidden />
+                </span>
+                <span>
+                  <strong>{voice.name}</strong>
+                  <small>{voice.description}</small>
+                </span>
+                <span className="voiceAction">
+                  {voice.name === data.settings.voiceName ? "Active" : "Select"}
+                </span>
+              </label>
+            ))}
+          </section>
+
           <section className="band">
             <div className="sectionHeader">
               <div>
-                <h2>Voice</h2>
-                <p>Choose the sound and conversational shape of the agent.</p>
+                <h2>Customize tone</h2>
+                <p>Fine-tune how {data.settings.agentName} speaks on every call.</p>
               </div>
               <button type="submit">Save settings</button>
             </div>
@@ -105,16 +154,6 @@ export default async function SettingsPage() {
               <label className="field">
                 <span>Agent name</span>
                 <input name="agentName" defaultValue={data.settings.agentName} />
-              </label>
-              <label className="field">
-                <span>Voice</span>
-                <select name="voiceName" defaultValue={data.settings.voiceName}>
-                  {data.voiceOptions.map((voice) => (
-                    <option value={voice.name} key={voice.name}>
-                      {voice.name} - {voice.description}
-                    </option>
-                  ))}
-                </select>
               </label>
               <label className="field">
                 <span>Pace</span>
@@ -249,7 +288,10 @@ async function saveSettings(formData: FormData) {
   });
 
   if (!response.ok) {
-    throw new Error(`Unable to save settings. API returned ${response.status}.`);
+    const message = await response.text();
+    throw new Error(
+      `Unable to save settings. API returned ${response.status}. ${message}`
+    );
   }
 
 }

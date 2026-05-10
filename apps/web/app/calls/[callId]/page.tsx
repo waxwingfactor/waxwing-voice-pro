@@ -1,10 +1,12 @@
 import {
   ArrowLeft,
+  Bell,
   CalendarCheck,
   CheckCircle2,
   ClipboardList,
   Download,
   FileAudio,
+  Home,
   Mail,
   MapPinned,
   MessageSquareText,
@@ -78,12 +80,13 @@ export default async function CallDetailPage({
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
-          <PhoneCall size={24} aria-hidden />
-          <span>Waxwing Voice Pro</span>
+          <span className="brandMark">WV</span>
+          <span>Waxwing Voice</span>
         </div>
+        <p className="navSection">Workspace</p>
         <nav>
           <a href="/">
-            <CheckCircle2 size={18} aria-hidden /> Overview
+            <Home size={18} aria-hidden /> Dashboard
           </a>
           <a className="active" href="/calls">
             <FileAudio size={18} aria-hidden /> Calls
@@ -91,6 +94,9 @@ export default async function CallDetailPage({
           <a href="/settings">
             <SlidersHorizontal size={18} aria-hidden /> Settings
           </a>
+        </nav>
+        <p className="navSection">Configure</p>
+        <nav>
           <a href="/#calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
@@ -101,6 +107,12 @@ export default async function CallDetailPage({
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
+        <div className="agentCard">
+          <span className="listenOrb" />
+          <strong>Voice agent</strong>
+          <small>Listening for calls</small>
+          <span>Call review · v2.4</span>
+        </div>
       </aside>
 
       <section className="workspace">
@@ -110,16 +122,20 @@ export default async function CallDetailPage({
               <ArrowLeft size={16} aria-hidden />
               All calls
             </a>
-            <p className="eyebrow">{data.client.name}</p>
-            <h1>{call.callerName ?? "Unknown caller"}</h1>
-            <p className="subtle">
-              {formatDateTime(call.startedAt, data.client.timezone)} ·{" "}
-              {call.propertyAddress ?? "Property not captured"}
-            </p>
+            <h1>Call detail</h1>
           </div>
-          <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
-            <Mail size={20} aria-hidden />
-          </a>
+          <div className="topActions">
+            <span className="listeningBadge">
+              <span className="listenOrb" /> Agent is listening
+            </span>
+            <button className="iconButton" aria-label="Notifications">
+              <Bell size={20} aria-hidden />
+            </button>
+            <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
+              <Mail size={20} aria-hidden />
+            </a>
+            <span className="avatar">WV</span>
+          </div>
         </header>
 
         {!result.ok ? (
@@ -129,59 +145,51 @@ export default async function CallDetailPage({
           </section>
         ) : null}
 
-        <section className="metrics" aria-label="Call status">
-          <Metric label="Status" value={call.qualificationStatus ?? call.outcome ?? call.status} />
-          <Metric label="Showing" value={showingLabel(call)} />
-          <Metric label="Callback" value={call.callbackRequested ? "Requested" : "No"} />
-          <Metric label="Compliance items" value={String(call.complianceEventCount)} />
+        <section className="callHero">
+          <span className="largeAvatar">{initials(call.callerName)}</span>
+          <div>
+            <h2>{call.callerName ?? "Unknown caller"}</h2>
+            <p>
+              {call.callerPhone ?? "No phone captured"} ·{" "}
+              {formatDateTime(call.startedAt, data.client.timezone)} · {call.id}
+            </p>
+          </div>
+          <StatusPill value={call.qualificationStatus ?? call.outcome ?? call.status} />
+          <div className="callHeroActions">
+            <a className="secondaryButton" href={primaryAudioUrl(call) ?? "#"}>
+              <Download size={18} aria-hidden /> Download
+            </a>
+            <a className="primaryButton" href={`tel:${call.callerPhone ?? ""}`}>
+              <PhoneCall size={18} aria-hidden /> Call back
+            </a>
+          </div>
         </section>
 
-        <section className="band">
-          <div className="sectionHeader">
-            <div>
-              <h2>Call Details</h2>
-              <p>Recording, structured captured info, and transcript for this call.</p>
-            </div>
-            <span className="pill">{call.id}</span>
-          </div>
+        <section className="recordingHero detailBlock">
+          <RecordingPlayers call={call} />
+        </section>
 
-          <div className="callDetailGrid singleCallDetail">
-            <section className="detailBlock audioBlock" aria-label="Recording player">
-              <div className="blockTitle">
-                <PlayCircle size={18} aria-hidden />
-                <h3>Recording</h3>
-              </div>
-              <RecordingPlayers call={call} />
-            </section>
-
-            <section className="detailBlock" aria-label="Captured call information">
-              <div className="blockTitle">
-                <ClipboardList size={18} aria-hidden />
-                <h3>Captured Info</h3>
-              </div>
-              <CapturedInfo call={call} />
-            </section>
-
+        <section className="callDetailGrid singleCallDetail">
             <section className="detailBlock transcriptBlock" aria-label="Structured transcript">
               <div className="blockTitle">
                 <MessageSquareText size={18} aria-hidden />
                 <h3>Transcript</h3>
+                <span className="pill">{call.transcript.length} turns</span>
               </div>
               <Transcript call={call} timezone={data.client.timezone} />
             </section>
-          </div>
+
+            <section className="detailBlock capturedPanel" aria-label="Captured call information">
+              <div className="blockTitle">
+                <ClipboardList size={18} aria-hidden />
+                <h3>Captured Info</h3>
+                <span className="scoreRing">{leadScore(call)}</span>
+              </div>
+              <CapturedInfo call={call} />
+            </section>
         </section>
       </section>
     </main>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric compactMetric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
@@ -209,8 +217,16 @@ function RecordingPlayers({ call }: { call: DashboardCall }) {
       {primaryFile ? (
         <div className="audioTrack primaryAudioTrack">
           <div>
+            <span className="playBubble">
+              <PlayCircle size={36} aria-hidden />
+            </span>
             <strong>{audioLabel(primaryFile.kind)}</strong>
             <span>{formatBytes(primaryFile.byteSize)}</span>
+          </div>
+          <div className="waveform" aria-hidden>
+            {Array.from({ length: 80 }).map((_, index) => (
+              <i key={index} style={{ "--h": `${24 + ((index * 17) % 58)}%` } as React.CSSProperties} />
+            ))}
           </div>
           <audio controls preload="none" src={primaryFile.signedUrl} />
         </div>
@@ -377,8 +393,37 @@ function showingLabel(call: DashboardCall): string {
 
 function speakerLabel(speaker: "caller" | "agent" | "system"): string {
   if (speaker === "caller") return "Caller";
-  if (speaker === "agent") return "Morgan";
+  if (speaker === "agent") return "Agent";
   return "System";
+}
+
+function StatusPill({ value }: { value: string }) {
+  const isBad = value.toLowerCase().includes("no") || value.toLowerCase().includes("failed");
+  return <span className={isBad ? "statusPill bad" : "statusPill"}>{value}</span>;
+}
+
+function initials(name?: string): string {
+  if (!name) return "??";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "??";
+}
+
+function leadScore(call: DashboardCall): number {
+  if (call.qualification?.qualifiedToApply === "yes") return 92;
+  if (call.qualification?.qualifiedToApply === "debatable") return 63;
+  if (call.qualification?.qualifiedToApply === "no") return 28;
+  return call.showingRequested ? 78 : 50;
+}
+
+function primaryAudioUrl(call: DashboardCall): string | undefined {
+  return (
+    call.audioFiles.find((file) => file.kind === "mixed_wav" && file.signedUrl)?.signedUrl ??
+    call.audioFiles.find((file) => file.signedUrl)?.signedUrl
+  );
 }
 
 function audioLabel(kind: string): string {

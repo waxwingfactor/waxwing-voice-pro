@@ -111,7 +111,12 @@ export function registerDashboardRoutes(
     const clientSlug = query.client_slug ?? "default";
     const body = request.body as Record<string, unknown>;
     const settings = sanitizeAgentSettings(body);
-    const client = await deps.repository.updateClientAgentSettings(clientSlug, settings);
+    const client = await deps.repository
+      .updateClientAgentSettings(clientSlug, settings)
+      .catch((error) => {
+        app.log.error({ error }, "Unable to update dashboard agent settings");
+        throw error;
+      });
     if (!client) {
       return reply.code(404).send({ error: `Client not found: ${clientSlug}` });
     }
@@ -127,6 +132,25 @@ export function registerDashboardRoutes(
       voiceOptions: VOICE_OPTIONS,
       generatedAt: new Date().toISOString()
     };
+  });
+
+  app.setErrorHandler((error, request, reply) => {
+    if (request.method === "PATCH" && request.url.startsWith("/dashboard/settings")) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (looksLikeMissingAgentSettingsMigration(message)) {
+        return reply.code(409).send({
+          error: "Agent settings migration has not been applied.",
+          details:
+            "Run supabase/migrations/0003_agent_settings.sql in the Supabase SQL editor, then redeploy or retry."
+        });
+      }
+      return reply.code(500).send({
+        error: "Unable to save agent settings.",
+        details: message
+      });
+    }
+
+    return reply.send(error);
   });
 }
 
@@ -196,6 +220,20 @@ function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => item !== undefined)
   ) as Partial<T>;
+}
+
+function looksLikeMissingAgentSettingsMigration(message: string): boolean {
+  return [
+    "agent_name",
+    "agent_voice_name",
+    "agent_pace",
+    "agent_warmth",
+    "agent_initial_greeting",
+    "qualification_min_credit_score",
+    "qualification_income_multiple",
+    "auto_book_showings",
+    "ask_pets_on_no_pet_properties"
+  ].some((column) => message.includes(column));
 }
 
 async function createSignedAudioUrl(

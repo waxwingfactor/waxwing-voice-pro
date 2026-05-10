@@ -1,14 +1,18 @@
 import {
+  Bell,
   CalendarCheck,
   CheckCircle2,
   ClipboardList,
   Download,
   FileAudio,
+  Filter,
+  Home,
   Mail,
   MapPinned,
   MessageSquareText,
   PhoneCall,
   PlayCircle,
+  Search,
   ShieldCheck,
   SlidersHorizontal,
   TriangleAlert
@@ -73,12 +77,13 @@ export default async function CallsPage() {
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
-          <PhoneCall size={24} aria-hidden />
-          <span>Waxwing Voice Pro</span>
+          <span className="brandMark">WV</span>
+          <span>Waxwing Voice</span>
         </div>
+        <p className="navSection">Workspace</p>
         <nav>
           <a href="/">
-            <CheckCircle2 size={18} aria-hidden /> Overview
+            <Home size={18} aria-hidden /> Dashboard
           </a>
           <a className="active" href="/calls">
             <FileAudio size={18} aria-hidden /> Calls
@@ -86,6 +91,9 @@ export default async function CallsPage() {
           <a href="/settings">
             <SlidersHorizontal size={18} aria-hidden /> Settings
           </a>
+        </nav>
+        <p className="navSection">Configure</p>
+        <nav>
           <a href="/#calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
@@ -96,20 +104,35 @@ export default async function CallsPage() {
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
+        <div className="agentCard">
+          <span className="listenOrb" />
+          <strong>Voice agent</strong>
+          <small>Listening for calls</small>
+          <span>{data.recentCalls.length} today · v2.4</span>
+        </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{data.client.name}</p>
             <h1>Calls</h1>
             <p className="subtle">
-              Detailed call review updated {formatDateTime(data.generatedAt, data.client.timezone)}
+              {data.recentCalls.length} total · {qualifiedCount(data)} qualified ·{" "}
+              {showingsBookedCount(data)} showings booked
             </p>
           </div>
-          <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
-            <Mail size={20} aria-hidden />
-          </a>
+          <div className="topActions">
+            <span className="listeningBadge">
+              <span className="listenOrb" /> Agent is listening
+            </span>
+            <button className="iconButton" aria-label="Notifications">
+              <Bell size={20} aria-hidden />
+            </button>
+            <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
+              <Mail size={20} aria-hidden />
+            </a>
+            <span className="avatar">WV</span>
+          </div>
         </header>
 
         {!result.ok ? (
@@ -119,13 +142,34 @@ export default async function CallsPage() {
           </section>
         ) : null}
 
-        <section className="band" id="calls">
-          <div className="sectionHeader">
-            <div>
-              <h2>Call Review</h2>
-              <p>Recordings, structured transcript, and captured lead fields.</p>
-            </div>
-            <span className="pill">{data.recentCalls.length} calls today</span>
+        <section className="callsToolbar">
+          <label className="searchBox">
+            <Search size={22} aria-hidden />
+            <input placeholder="Search caller, phone, property" aria-label="Search calls" />
+          </label>
+          <button type="button">
+            <Filter size={20} aria-hidden /> Filters
+          </button>
+          <button type="button">
+            <Download size={20} aria-hidden /> Export
+          </button>
+        </section>
+
+        <section className="tabBar" aria-label="Call filters">
+          <span className="active">All <b>{data.recentCalls.length}</b></span>
+          <span>Qualified <b>{qualifiedCount(data)}</b></span>
+          <span>Pending <b>{pendingCount(data)}</b></span>
+          <span>Not qualified <b>{notQualifiedCount(data)}</b></span>
+          <span>Showings booked <b>{showingsBookedCount(data)}</b></span>
+        </section>
+
+        <section className="band callsListCard" id="calls">
+          <div className="callsHeaderRow">
+            <span>Caller</span>
+            <span>Property</span>
+            <span>Move-in</span>
+            <span>Status</span>
+            <span>Score</span>
           </div>
 
           <div className="callStack" aria-label="Call details">
@@ -133,17 +177,21 @@ export default async function CallsPage() {
               data.recentCalls.map((call, index) => (
                 <details className="callRecord" key={call.id} open={index === 0}>
                   <summary>
-                    <span className="summaryIcon">
+                    <span className="summaryIcon phoneIcon">
                       <FileAudio size={18} aria-hidden />
                     </span>
+                    <span className="miniAvatar">{initials(call.callerName)}</span>
                     <span>
                       <strong>{call.callerName ?? "Unknown caller"}</strong>
-                      <small>
-                        {formatDateTime(call.startedAt, data.client.timezone)} ·{" "}
-                        {call.propertyAddress ?? "Property not captured"}
-                      </small>
+                      <small>{call.callerPhone ?? "No phone captured"}</small>
                     </span>
-                    <span className="summaryStatus">{call.qualificationStatus ?? call.status}</span>
+                    <span>{call.propertyAddress ?? "Property not captured"}</span>
+                    <span>{stringValue(call.lead?.desiredMoveInDate)}</span>
+                    <StatusPill value={call.qualificationStatus ?? call.status} />
+                    <span className="scoreCell">
+                      <i aria-hidden />
+                      {leadScore(call)}
+                    </span>
                   </summary>
 
                   <div className="callDetailGrid">
@@ -375,8 +423,46 @@ function showingLabel(call: DashboardData["recentCalls"][number]): string {
 
 function speakerLabel(speaker: "caller" | "agent" | "system"): string {
   if (speaker === "caller") return "Caller";
-  if (speaker === "agent") return "Morgan";
+  if (speaker === "agent") return "Agent";
   return "System";
+}
+
+function StatusPill({ value }: { value: string }) {
+  const isBad = value.toLowerCase().includes("no") || value.toLowerCase().includes("failed");
+  return <span className={isBad ? "statusPill bad" : "statusPill"}>{value}</span>;
+}
+
+function initials(name?: string): string {
+  if (!name) return "??";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "??";
+}
+
+function leadScore(call: DashboardData["recentCalls"][number]): number {
+  if (call.qualification?.qualifiedToApply === "yes") return 92;
+  if (call.qualification?.qualifiedToApply === "debatable") return 63;
+  if (call.qualification?.qualifiedToApply === "no") return 28;
+  return call.showingRequested ? 78 : 50;
+}
+
+function qualifiedCount(data: DashboardData): number {
+  return data.recentCalls.filter((call) => call.qualificationStatus === "yes").length;
+}
+
+function pendingCount(data: DashboardData): number {
+  return data.recentCalls.filter((call) => !call.qualificationStatus).length;
+}
+
+function notQualifiedCount(data: DashboardData): number {
+  return data.recentCalls.filter((call) => call.qualificationStatus === "no").length;
+}
+
+function showingsBookedCount(data: DashboardData): number {
+  return data.recentCalls.filter((call) => call.outcome === "showing_booked").length;
 }
 
 function audioLabel(kind: string): string {
