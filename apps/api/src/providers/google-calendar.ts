@@ -66,12 +66,12 @@ export class GoogleCalendarProvider {
       })) ?? [];
 
     const slots: ShowingSlot[] = [];
-    const cursor = new Date(params.timeMin);
-    cursor.setMinutes(0, 0, 0);
+    const cursor = roundUpToNextHalfHour(params.timeMin);
     while (cursor < params.timeMax && slots.length < 5) {
       const end = new Date(cursor.getTime() + params.durationMinutes * 60_000);
-      const hour = cursor.getHours();
-      const isBusinessHour = hour >= 9 && hour <= 16;
+      const localStartMinute = getLocalMinuteOfDay(cursor, params.timezone);
+      const localEndMinute = getLocalMinuteOfDay(end, params.timezone);
+      const isBusinessHour = localStartMinute >= 9 * 60 && localEndMinute <= 17 * 60;
       const overlaps = busy.some((item) => cursor < item.end && end > item.start);
       if (isBusinessHour && !overlaps && end <= params.timeMax) {
         slots.push({
@@ -120,4 +120,33 @@ export class GoogleCalendarProvider {
     this.oauth2.setCredentials({ refresh_token: refreshToken });
     return google.calendar({ version: "v3", auth: this.oauth2 });
   }
+}
+
+function roundUpToNextHalfHour(date: Date): Date {
+  const rounded = new Date(date);
+  rounded.setSeconds(0, 0);
+  const minutes = rounded.getMinutes();
+  const remainder = minutes % 30;
+  if (remainder !== 0) {
+    rounded.setMinutes(minutes + (30 - remainder));
+  }
+  return rounded;
+}
+
+function getLocalMinuteOfDay(date: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23"
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  const hour = parts.hour ? Number(parts.hour) : date.getUTCHours();
+  const minute = parts.minute ? Number(parts.minute) : date.getUTCMinutes();
+  return hour * 60 + minute;
 }

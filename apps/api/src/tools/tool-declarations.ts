@@ -48,13 +48,22 @@ export function getToolDeclarations(): Array<Record<string, unknown>> {
     },
     {
       name: "find_showing_slots",
-      description: "Find available calendar slots for a property showing.",
+      description:
+        "Find available Google Calendar slots for a property showing. Use this whenever the caller asks what showing dates, tour times, appointment times, or viewing slots are available.",
       parameters: {
         type: Type.OBJECT,
         properties: {
           property_id: { type: Type.STRING },
-          preferred_start: { type: Type.STRING },
-          preferred_end: { type: Type.STRING }
+          preferred_start: {
+            type: Type.STRING,
+            description:
+              "Optional ISO date-time if the caller requested a starting date or time window."
+          },
+          preferred_end: {
+            type: Type.STRING,
+            description:
+              "Optional ISO date-time if the caller requested an ending date or time window."
+          }
         },
         required: ["property_id"]
       }

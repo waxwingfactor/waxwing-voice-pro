@@ -42,7 +42,7 @@ export class ToolRegistry {
       case "calculate_qualification":
         return this.calculateQualification(call.args);
       case "find_showing_slots":
-        return this.findShowingSlots(String(call.args.property_id ?? ""));
+        return this.findShowingSlots(call.args);
       case "book_showing":
         return this.bookShowing(call.args);
       case "transfer_call":
@@ -115,21 +115,45 @@ export class ToolRegistry {
     };
   }
 
-  private async findShowingSlots(propertyId: string): Promise<Record<string, unknown>> {
+  private async findShowingSlots(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const propertyId = String(args.property_id ?? "");
     const property = await this.deps.repository.getProperty(propertyId);
     if (!property) return { ok: false, error: "Property not found." };
+
+    if (property.availableDate && !isAvailableForDirectShowing(property.availableDate)) {
+      return {
+        ok: false,
+        code: "property_not_available_for_direct_showing",
+        property: publicProperty(property),
+        message:
+          "This property is not available for direct showing yet. Collect the caller's preferred showing time and tell them the office will coordinate after confirming access."
+      };
+    }
 
     const connection = property.calendarId
       ? await this.deps.repository.getCalendarConnection(this.deps.client.id, property.calendarId)
       : await this.deps.repository.getDefaultCalendarConnection(this.deps.client.id);
     if (!connection) {
-      return { ok: false, error: "Google Calendar is not connected for this property." };
+      return {
+        ok: false,
+        code: "calendar_not_connected",
+        property: publicProperty(property),
+        error:
+          "Google Calendar is not connected for this property. Collect the caller's preferred showing date or time and say the office will follow up to coordinate it."
+      };
     }
     const calendarId = property.calendarId ?? connection.calendarId;
 
     const refreshToken = this.deps.tokenVault.decrypt(connection.encryptedRefreshToken);
-    const timeMin = new Date(Date.now() + 5 * 60 * 60 * 1000);
-    const timeMax = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const defaultTimeMin = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const preferredStart = parseOptionalDate(args.preferred_start);
+    const preferredEnd = parseOptionalDate(args.preferred_end);
+    const timeMin =
+      preferredStart && preferredStart > defaultTimeMin ? preferredStart : defaultTimeMin;
+    const timeMax =
+      preferredEnd && preferredEnd > timeMin
+        ? preferredEnd
+        : new Date(timeMin.getTime() + 14 * 24 * 60 * 60 * 1000);
     const slots = await this.deps.calendar.findAvailableSlots({
       calendarId,
       refreshToken,
@@ -139,7 +163,18 @@ export class ToolRegistry {
       timezone: this.deps.client.timezone
     });
 
-    return { ok: true, slots };
+    return {
+      ok: true,
+      property: publicProperty(property),
+      calendar_id: calendarId,
+      timezone: this.deps.client.timezone,
+      slots,
+      spoken_options: slots.map((slot) => formatSlotForSpeech(slot, this.deps.client.timezone)),
+      message:
+        slots.length > 0
+          ? "Offer two or three of these options and ask which works best."
+          : "No open showing slots were found in the requested window. Collect a preferred time and say the office will follow up."
+    };
   }
 
   private async bookShowing(args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -298,4 +333,42 @@ function isSameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+function parseOptionalDate(value: unknown): Date | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : undefined;
+}
+
+function isAvailableForDirectShowing(availableDate: string): boolean {
+  const normalized = availableDate.trim().toLowerCase();
+  if (!normalized || normalized === "now" || normalized === "available now") return true;
+  const date = new Date(availableDate);
+  if (!Number.isFinite(date.getTime())) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today;
+}
+
+function formatSlotForSpeech(slot: ShowingSlot, timezone: string): string {
+  const start = new Date(slot.start);
+  const end = new Date(slot.end);
+  const date = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  }).format(start);
+  const startTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(start);
+  const endTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(end);
+  return `${date} from ${startTime} to ${endTime}`;
 }
