@@ -24,8 +24,15 @@ export function registerTwilioRoutes(
   app.post("/twilio/voice", async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, string | undefined>;
     const clientSlug = body.To ? "default" : "default";
+    const client = await deps.repository.getClientBySlug(clientSlug).catch((error) => {
+      request.log.warn({ error }, "Unable to load client for Twilio fallback");
+      return null;
+    });
     const streamUrl = new URL("/twilio/media", deps.env.TWILIO_WEBHOOK_BASE_URL);
     streamUrl.protocol = streamUrl.protocol === "https:" ? "wss:" : "ws:";
+    const fallbackDial = client?.transferPhoneNumber
+      ? `\n  <Dial>${escapeXml(client.transferPhoneNumber)}</Dial>`
+      : "";
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -34,6 +41,7 @@ export function registerTwilioRoutes(
       <Parameter name="clientSlug" value="${escapeXml(clientSlug)}" />
     </Stream>
   </Connect>
+  <Say>Sorry, the leasing assistant is temporarily unavailable. Please hold while I connect you.</Say>${fallbackDial}
 </Response>`;
 
     return reply.type("text/xml").send(twiml);

@@ -1,4 +1,9 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import {
+  EndSensitivity,
+  GoogleGenAI,
+  Modality,
+  StartSensitivity
+} from "@google/genai";
 import { buildSystemInstruction } from "@waxwing/core";
 import { getToolDeclarations } from "../tools/tool-declarations.js";
 
@@ -13,6 +18,7 @@ export interface GeminiLiveHandlers {
 
 export interface GeminiLiveSession {
   sendPcm16(pcm16: Buffer): void;
+  sendText(text: string): void;
   sendToolResponse(response: {
     id?: string;
     name: string;
@@ -57,6 +63,15 @@ export class GeminiLiveClient {
         outputAudioTranscription: {},
         enableAffectiveDialog: true,
         proactivity: { proactiveAudio: true },
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            disabled: false,
+            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
+            endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
+            prefixPaddingMs: 20,
+            silenceDurationMs: 700
+          }
+        },
         tools: [{ functionDeclarations: getToolDeclarations() }]
       }
     });
@@ -68,6 +83,12 @@ export class GeminiLiveClient {
             data: pcm16.toString("base64"),
             mimeType: "audio/pcm;rate=16000"
           }
+        });
+      },
+      sendText: (text: string) => {
+        session.sendClientContent({
+          turns: [{ role: "user", parts: [{ text }] }],
+          turnComplete: true
         });
       },
       sendToolResponse: (response) => {
@@ -119,6 +140,7 @@ export class GeminiLiveClient {
 
 class NoopGeminiLiveSession implements GeminiLiveSession {
   sendPcm16(): void {}
+  sendText(): void {}
   sendToolResponse(): void {}
   close(): void {}
 }

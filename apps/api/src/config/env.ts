@@ -25,7 +25,7 @@ const envSchema = z.object({
   SENTRY_DSN: optionalUrl,
 
   GEMINI_API_KEY: optionalString,
-  GEMINI_LIVE_MODEL: z.string().default("gemini-3.1-flash-live-preview"),
+  GEMINI_LIVE_MODEL: z.string().default("gemini-2.5-flash-native-audio-preview-12-2025"),
 
   TWILIO_ACCOUNT_SID: optionalString,
   TWILIO_AUTH_TOKEN: optionalString,

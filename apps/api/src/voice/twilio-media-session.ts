@@ -48,6 +48,9 @@ export class TwilioMediaSession {
     this.deps.socket.on("message", (raw) => {
       this.handleSocketMessage(raw.toString()).catch((error) => {
         this.deps.log.error({ error }, "Failed to process Twilio media message");
+        this.failAndClose(error).catch((closeError) => {
+          this.deps.log.error({ error: closeError }, "Failed to close broken media session");
+        });
       });
     });
     this.deps.socket.on("close", () => {
@@ -119,6 +122,9 @@ export class TwilioMediaSession {
         },
         onError: (error) => {
           this.deps.log.error({ error }, "Gemini Live error");
+          this.failAndClose(error).catch((closeError) => {
+            this.deps.log.error({ error: closeError }, "Failed to close Gemini error session");
+          });
         },
         onClose: () => {
           this.deps.log.debug("Gemini Live session closed");
@@ -128,6 +134,9 @@ export class TwilioMediaSession {
 
     this.callState.activate();
     await this.deps.repository.updateCall(this.callState.value);
+    this.geminiSession.sendText(
+      "Start the phone call now with this exact short greeting: Hi, this is Morgan with Hunter Property Management. What property are you calling about?"
+    );
   }
 
   private handleMedia(message: TwilioMediaMessage): void {
@@ -191,6 +200,18 @@ export class TwilioMediaSession {
       client: this.client,
       audioPaths
     });
+  }
+
+  private async failAndClose(error: unknown): Promise<void> {
+    if (this.finalized) return;
+    if (this.callState) {
+      this.callState.fail(error instanceof Error ? error.message : String(error));
+      await this.deps.repository.updateCall(this.callState.value).catch((updateError) => {
+        this.deps.log.warn({ error: updateError }, "Failed to persist failed call state");
+      });
+    }
+    this.geminiSession?.close();
+    this.deps.socket.close();
   }
 }
 

@@ -52,7 +52,7 @@ Store this carefully. If it is lost, encrypted OAuth refresh tokens cannot be re
 Use the currently available Gemini Live model string. The default in this repo is:
 
 ```text
-gemini-3.1-flash-live-preview
+gemini-2.5-flash-native-audio-preview-12-2025
 ```
 
 If Google changes the exact model name, update only this environment variable.
