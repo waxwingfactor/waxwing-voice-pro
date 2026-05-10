@@ -138,7 +138,7 @@ Recommended bucket settings:
 Comma-separated MIME types:
 
 ```text
-audio/basic,audio/wav,audio/mpeg,audio/mp4,audio/webm,application/json,text/plain
+application/octet-stream,audio/wav,audio/mpeg,audio/mp4,audio/webm,application/json,text/plain
 ```
 
 ## Resend

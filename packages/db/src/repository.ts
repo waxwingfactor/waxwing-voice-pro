@@ -36,6 +36,7 @@ export interface AppRepository {
   getClientBySlug(slug: string): Promise<ClientProfile | null>;
   listActiveProperties(clientId: string): Promise<PropertyRecord[]>;
   getProperty(propertyId: string): Promise<PropertyRecord | null>;
+  getCallIdByTwilioSid(twilioCallSid: string): Promise<string | null>;
   upsertCalendarConnection(input: CalendarConnection): Promise<void>;
   getCalendarConnection(
     clientId: string,
@@ -119,6 +120,17 @@ export class SupabaseAppRepository implements AppRepository {
 
     if (error) throw error;
     return data ? mapProperty(data) : null;
+  }
+
+  async getCallIdByTwilioSid(twilioCallSid: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("calls")
+      .select("id")
+      .eq("twilio_call_sid", twilioCallSid)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.id ?? null;
   }
 
   async upsertCalendarConnection(input: CalendarConnection): Promise<void> {

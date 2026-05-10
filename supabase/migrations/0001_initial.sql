@@ -201,6 +201,16 @@ create policy "service role full access emails" on emails for all to service_rol
 create policy "service role full access miro_exports" on miro_exports for all to service_role using (true) with check (true);
 create policy "service role full access audit_logs" on audit_logs for all to service_role using (true) with check (true);
 
+grant usage on schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select, update on all sequences in schema public to service_role;
+
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to service_role;
+
+alter default privileges in schema public
+  grant usage, select, update on sequences to service_role;
+
 insert into storage.buckets (id, name, public)
 values ('call-artifacts', 'call-artifacts', false)
 on conflict (id) do nothing;

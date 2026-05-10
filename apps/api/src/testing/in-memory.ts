@@ -74,6 +74,12 @@ export class InMemoryRepository implements AppRepository {
     return properties.find((property) => property.id === propertyId) ?? null;
   }
 
+  async getCallIdByTwilioSid(twilioCallSid: string): Promise<string | null> {
+    return (
+      [...this.calls.values()].find((call) => call.twilioCallSid === twilioCallSid)?.id ?? null
+    );
+  }
+
   async upsertCalendarConnection(): Promise<void> {}
 
   async getCalendarConnection(): Promise<null> {

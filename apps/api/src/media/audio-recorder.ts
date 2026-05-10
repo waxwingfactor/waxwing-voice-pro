@@ -71,12 +71,12 @@ export class CallAudioRecorder {
     path: string;
   }): Promise<void> {
     const body = Buffer.concat(params.chunks);
-    await params.storage.upload(params.path, body, "audio/basic");
+    await params.storage.upload(params.path, body, "application/octet-stream");
     await params.repository.recordCallAudio({
       callId: params.callId,
       kind: params.kind,
       storagePath: params.path,
-      mimeType: "audio/basic",
+      mimeType: "application/octet-stream",
       byteSize: body.byteLength
     });
   }

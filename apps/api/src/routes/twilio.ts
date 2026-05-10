@@ -48,13 +48,29 @@ export function registerTwilioRoutes(
   });
 
   app.post("/twilio/status", async (request, reply) => {
-    await deps.repository.appendCallEvent({
-      callId: String((request.body as Record<string, unknown>).CallSid ?? "unknown"),
-      eventType: "twilio_status_callback",
-      payload: request.body as Record<string, unknown>
-    }).catch((error) => {
-      request.log.warn({ error }, "Unable to store Twilio status callback");
-    });
+    const payload = (request.body ?? {}) as Record<string, unknown>;
+    const twilioCallSid = String(payload.CallSid ?? "");
+    const callId = twilioCallSid
+      ? await deps.repository.getCallIdByTwilioSid(twilioCallSid).catch((error) => {
+          request.log.warn({ error, twilioCallSid }, "Unable to resolve Twilio status call id");
+          return null;
+        })
+      : null;
+
+    if (callId) {
+      await deps.repository.appendCallEvent({
+        callId,
+        eventType: "twilio_status_callback",
+        payload
+      }).catch((error) => {
+        request.log.warn({ error }, "Unable to store Twilio status callback");
+      });
+    } else {
+      request.log.info(
+        { twilioCallSid, payload },
+        "Skipping Twilio status callback because no matching call row exists yet"
+      );
+    }
     return reply.code(204).send();
   });
 
