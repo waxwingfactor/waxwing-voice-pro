@@ -113,6 +113,32 @@ export class InMemoryRepository implements AppRepository {
     };
   }
 
+  async getDashboardCall(clientSlug: string, callId: string) {
+    if (clientSlug !== client.slug) return null;
+    const call = this.calls.get(callId);
+    if (!call) return null;
+    return {
+      client,
+      call: {
+        id: call.id,
+        startedAt: call.startedAt,
+        status: call.status,
+        outcome: call.outcome,
+        callerName: call.lead.callerName,
+        callerPhone: call.lead.callerPhone,
+        propertyAddress: call.lead.propertyAddress,
+        qualificationStatus: call.qualification?.qualifiedToApply,
+        showingRequested: call.lead.showingRequested === true,
+        callbackRequested: call.lead.callbackRequested === true,
+        complianceEventCount: call.complianceEvents.length,
+        lead: call.lead as unknown as Record<string, unknown>,
+        qualification: call.qualification,
+        transcript: call.transcript,
+        audioFiles: []
+      }
+    };
+  }
+
   async listActiveProperties(clientId: string): Promise<PropertyRecord[]> {
     return properties.filter((property) => property.clientId === clientId && property.active);
   }

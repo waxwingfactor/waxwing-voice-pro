@@ -151,13 +151,13 @@ export default async function DashboardPage() {
             </div>
             {data.recentCalls.length > 0 ? (
               data.recentCalls.map((call) => (
-                <div className="row" role="row" key={call.id}>
+                <a className="row rowLink" role="row" href={`/calls/${call.id}`} key={call.id}>
                   <span>{formatTime(call.startedAt, data.client.timezone)}</span>
                   <span title={call.callerPhone}>{call.callerName ?? "Unknown"}</span>
                   <span>{call.propertyAddress ?? "Not captured"}</span>
                   <span>{call.qualificationStatus ?? call.outcome ?? call.status}</span>
                   <span>{showingLabel(call)}</span>
-                </div>
+                </a>
               ))
             ) : (
               <div className="emptyRow">No calls have been logged yet today.</div>

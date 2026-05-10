@@ -45,6 +45,37 @@ export function registerDashboardRoutes(
       generatedAt: new Date().toISOString()
     };
   });
+
+  app.get("/dashboard/calls/:callId", async (request, reply) => {
+    if (!authorizeDashboardRequest(request, reply, deps.env)) return;
+
+    const query = request.query as Record<string, string | undefined>;
+    const params = request.params as Record<string, string | undefined>;
+    const clientSlug = query.client_slug ?? "default";
+    const callId = params.callId;
+    if (!callId) {
+      return reply.code(400).send({ error: "Missing call id." });
+    }
+
+    const detail = await deps.repository.getDashboardCall(clientSlug, callId);
+    if (!detail) {
+      return reply.code(404).send({ error: `Call not found: ${callId}` });
+    }
+
+    return {
+      ...detail,
+      call: {
+        ...detail.call,
+        audioFiles: await Promise.all(
+          detail.call.audioFiles.map(async (file) => ({
+            ...file,
+            signedUrl: await createSignedAudioUrl(file.storagePath, deps.storage, app.log)
+          }))
+        )
+      },
+      generatedAt: new Date().toISOString()
+    };
+  });
 }
 
 async function createSignedAudioUrl(

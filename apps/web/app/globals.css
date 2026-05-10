@@ -202,6 +202,16 @@ a.iconButton {
   font-size: 28px;
 }
 
+.compactMetric {
+  grid-template-columns: 1fr;
+}
+
+.compactMetric strong {
+  grid-column: 1;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
 .band,
 .panel {
   padding: 20px;
@@ -233,6 +243,8 @@ a.iconButton {
   min-height: 46px;
   align-items: center;
   border-top: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
 }
 
 .row:first-child {
@@ -252,6 +264,10 @@ a.iconButton {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.rowLink:hover {
+  background: #f3f8f6;
 }
 
 .emptyRow {
@@ -336,6 +352,35 @@ a.iconButton {
   grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
   gap: 14px;
   padding: 14px;
+}
+
+.singleCallDetail {
+  padding: 0;
+}
+
+.backLink,
+.miniPageLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.backLink {
+  margin-bottom: 14px;
+}
+
+.miniPageLink {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #b9ded1;
+  border-radius: 8px;
+  background: #eef9f4;
 }
 
 .detailBlock {

@@ -7,6 +7,9 @@ import type {
   ShowingSlot
 } from "@waxwing/core";
 
+const DASHBOARD_CALL_SELECT =
+  "id, started_at, status, outcome, lead, qualification, compliance_events, transcript, properties(street_number, street_name, city, state, monthly_rent_cents), call_events(event_type, payload, created_at), call_audio_files(kind, storage_path, mime_type, byte_size, created_at)";
+
 export interface CallAudioFileInput {
   callId: string;
   kind:
@@ -86,9 +89,15 @@ export interface DashboardRepositorySnapshot {
   }>;
 }
 
+export interface DashboardCallDetail {
+  client: ClientProfile;
+  call: DashboardRecentCall;
+}
+
 export interface AppRepository {
   getClientBySlug(slug: string): Promise<ClientProfile | null>;
   getDashboardSnapshot(clientSlug: string): Promise<DashboardRepositorySnapshot | null>;
+  getDashboardCall(clientSlug: string, callId: string): Promise<DashboardCallDetail | null>;
   listActiveProperties(clientId: string): Promise<PropertyRecord[]>;
   getProperty(propertyId: string): Promise<PropertyRecord | null>;
   getCallIdByTwilioSid(twilioCallSid: string): Promise<string | null>;
@@ -162,9 +171,7 @@ export class SupabaseAppRepository implements AppRepository {
       await Promise.all([
         this.supabase
           .from("calls")
-          .select(
-            "id, started_at, status, outcome, lead, qualification, compliance_events, transcript, properties(street_number, street_name, city, state, monthly_rent_cents), call_events(event_type, payload, created_at), call_audio_files(kind, storage_path, mime_type, byte_size, created_at)"
-          )
+          .select(DASHBOARD_CALL_SELECT)
           .eq("client_id", client.id)
           .gte("started_at", startOfToday)
           .order("started_at", { ascending: false })
@@ -211,6 +218,24 @@ export class SupabaseAppRepository implements AppRepository {
       },
       calendarConnections
     };
+  }
+
+  async getDashboardCall(
+    clientSlug: string,
+    callId: string
+  ): Promise<DashboardCallDetail | null> {
+    const client = await this.getClientBySlug(clientSlug);
+    if (!client) return null;
+
+    const { data, error } = await this.supabase
+      .from("calls")
+      .select(DASHBOARD_CALL_SELECT)
+      .eq("client_id", client.id)
+      .eq("id", callId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? { client, call: mapDashboardCall(data as Record<string, any>) } : null;
   }
 
   async listActiveProperties(clientId: string): Promise<PropertyRecord[]> {

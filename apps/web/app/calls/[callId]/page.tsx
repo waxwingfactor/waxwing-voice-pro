@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   CalendarCheck,
   CheckCircle2,
   ClipboardList,
@@ -15,57 +16,61 @@ import {
 
 export const dynamic = "force-dynamic";
 
-interface DashboardData {
+interface CallDetailData {
   client: {
     name: string;
     timezone: string;
     managerEmails?: string[];
   };
-  counts: {
-    activeProperties: number;
-    calendarConnections: number;
-  };
-  recentCalls: Array<{
-    id: string;
-    startedAt: string;
-    status: string;
-    outcome?: string;
-    callerName?: string;
-    callerPhone?: string;
-    propertyAddress?: string;
-    qualificationStatus?: string;
-    showingRequested: boolean;
-    callbackRequested: boolean;
-    complianceEventCount: number;
-    lead: Record<string, unknown>;
-    qualification?: {
-      incomeThresholdCents: number;
-      creditAverage?: number;
-      creditOver600: boolean;
-      incomeMeets3xRent: boolean;
-      qualifiedToApply: string;
-      needsHumanFollowUp: boolean;
-    };
-    transcript: Array<{
-      speaker: "caller" | "agent" | "system";
-      text: string;
-      at: string;
-    }>;
-    audioFiles: Array<{
-      kind: string;
-      storagePath: string;
-      mimeType: string;
-      byteSize: number;
-      createdAt: string;
-      signedUrl?: string;
-    }>;
-  }>;
+  call: DashboardCall;
   generatedAt: string;
 }
 
-export default async function CallsPage() {
-  const result = await getDashboard();
-  const data = result.ok ? result.data : fallbackDashboard();
+interface DashboardCall {
+  id: string;
+  startedAt: string;
+  status: string;
+  outcome?: string;
+  callerName?: string;
+  callerPhone?: string;
+  propertyAddress?: string;
+  qualificationStatus?: string;
+  showingRequested: boolean;
+  callbackRequested: boolean;
+  complianceEventCount: number;
+  lead: Record<string, unknown>;
+  qualification?: {
+    incomeThresholdCents: number;
+    creditAverage?: number;
+    creditOver600: boolean;
+    incomeMeets3xRent: boolean;
+    qualifiedToApply: string;
+    needsHumanFollowUp: boolean;
+  };
+  transcript: Array<{
+    speaker: "caller" | "agent" | "system";
+    text: string;
+    at: string;
+  }>;
+  audioFiles: Array<{
+    kind: string;
+    storagePath: string;
+    mimeType: string;
+    byteSize: number;
+    createdAt: string;
+    signedUrl?: string;
+  }>;
+}
+
+export default async function CallDetailPage({
+  params
+}: {
+  params: Promise<{ callId: string }>;
+}) {
+  const { callId } = await params;
+  const result = await getCallDetail(callId);
+  const data = result.ok ? result.data : fallbackCallDetail(callId);
+  const call = data.call;
 
   return (
     <main className="shell">
@@ -96,10 +101,15 @@ export default async function CallsPage() {
       <section className="workspace">
         <header className="topbar">
           <div>
+            <a className="backLink" href="/calls">
+              <ArrowLeft size={16} aria-hidden />
+              All calls
+            </a>
             <p className="eyebrow">{data.client.name}</p>
-            <h1>Calls</h1>
+            <h1>{call.callerName ?? "Unknown caller"}</h1>
             <p className="subtle">
-              Detailed call review updated {formatDateTime(data.generatedAt, data.client.timezone)}
+              {formatDateTime(call.startedAt, data.client.timezone)} ·{" "}
+              {call.propertyAddress ?? "Property not captured"}
             </p>
           </div>
           <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
@@ -114,66 +124,46 @@ export default async function CallsPage() {
           </section>
         ) : null}
 
-        <section className="band" id="calls">
+        <section className="metrics" aria-label="Call status">
+          <Metric label="Status" value={call.qualificationStatus ?? call.outcome ?? call.status} />
+          <Metric label="Showing" value={showingLabel(call)} />
+          <Metric label="Callback" value={call.callbackRequested ? "Requested" : "No"} />
+          <Metric label="Compliance items" value={String(call.complianceEventCount)} />
+        </section>
+
+        <section className="band">
           <div className="sectionHeader">
             <div>
-              <h2>Call Review</h2>
-              <p>Recordings, structured transcript, and captured lead fields.</p>
+              <h2>Call Details</h2>
+              <p>Recording, structured captured info, and transcript for this call.</p>
             </div>
-            <span className="pill">{data.recentCalls.length} calls today</span>
+            <span className="pill">{call.id}</span>
           </div>
 
-          <div className="callStack" aria-label="Call details">
-            {data.recentCalls.length > 0 ? (
-              data.recentCalls.map((call, index) => (
-                <details className="callRecord" key={call.id} open={index === 0}>
-                  <summary>
-                    <span className="summaryIcon">
-                      <FileAudio size={18} aria-hidden />
-                    </span>
-                    <span>
-                      <strong>{call.callerName ?? "Unknown caller"}</strong>
-                      <small>
-                        {formatDateTime(call.startedAt, data.client.timezone)} ·{" "}
-                        {call.propertyAddress ?? "Property not captured"}
-                      </small>
-                    </span>
-                    <span className="summaryStatus">{call.qualificationStatus ?? call.status}</span>
-                  </summary>
+          <div className="callDetailGrid singleCallDetail">
+            <section className="detailBlock audioBlock" aria-label="Recording player">
+              <div className="blockTitle">
+                <PlayCircle size={18} aria-hidden />
+                <h3>Recording</h3>
+              </div>
+              <RecordingPlayers call={call} />
+            </section>
 
-                  <div className="callDetailGrid">
-                    <a className="miniPageLink" href={`/calls/${call.id}`}>
-                      Open call mini-page
-                    </a>
-                    <section className="detailBlock audioBlock" aria-label="Recording player">
-                      <div className="blockTitle">
-                        <PlayCircle size={18} aria-hidden />
-                        <h3>Recording</h3>
-                      </div>
-                      <RecordingPlayers call={call} />
-                    </section>
+            <section className="detailBlock" aria-label="Captured call information">
+              <div className="blockTitle">
+                <ClipboardList size={18} aria-hidden />
+                <h3>Captured Info</h3>
+              </div>
+              <CapturedInfo call={call} />
+            </section>
 
-                    <section className="detailBlock" aria-label="Captured call information">
-                      <div className="blockTitle">
-                        <ClipboardList size={18} aria-hidden />
-                        <h3>Captured Info</h3>
-                      </div>
-                      <CapturedInfo call={call} />
-                    </section>
-
-                    <section className="detailBlock transcriptBlock" aria-label="Structured transcript">
-                      <div className="blockTitle">
-                        <MessageSquareText size={18} aria-hidden />
-                        <h3>Transcript</h3>
-                      </div>
-                      <Transcript call={call} timezone={data.client.timezone} />
-                    </section>
-                  </div>
-                </details>
-              ))
-            ) : (
-              <div className="emptyRow">No calls have been logged yet today.</div>
-            )}
+            <section className="detailBlock transcriptBlock" aria-label="Structured transcript">
+              <div className="blockTitle">
+                <MessageSquareText size={18} aria-hidden />
+                <h3>Transcript</h3>
+              </div>
+              <Transcript call={call} timezone={data.client.timezone} />
+            </section>
           </div>
         </section>
       </section>
@@ -181,7 +171,16 @@ export default async function CallsPage() {
   );
 }
 
-function RecordingPlayers({ call }: { call: DashboardData["recentCalls"][number] }) {
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric compactMetric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function RecordingPlayers({ call }: { call: DashboardCall }) {
   const playableFiles = call.audioFiles.filter(
     (file) => file.signedUrl && file.mimeType.startsWith("audio/") && file.kind.endsWith("_wav")
   );
@@ -216,7 +215,7 @@ function RecordingPlayers({ call }: { call: DashboardData["recentCalls"][number]
   );
 }
 
-function CapturedInfo({ call }: { call: DashboardData["recentCalls"][number] }) {
+function CapturedInfo({ call }: { call: DashboardCall }) {
   const rows = capturedRows(call);
   if (rows.length === 0) {
     return <p className="emptyState">No structured fields were captured on this call.</p>;
@@ -234,13 +233,7 @@ function CapturedInfo({ call }: { call: DashboardData["recentCalls"][number] }) 
   );
 }
 
-function Transcript({
-  call,
-  timezone
-}: {
-  call: DashboardData["recentCalls"][number];
-  timezone: string;
-}) {
+function Transcript({ call, timezone }: { call: DashboardCall; timezone: string }) {
   if (call.transcript.length === 0) {
     return <p className="emptyState">No transcript turns have been saved for this call yet.</p>;
   }
@@ -260,12 +253,11 @@ function Transcript({
   );
 }
 
-async function getDashboard(): Promise<
-  | { ok: true; data: DashboardData }
-  | { ok: false; error: string }
-> {
+async function getCallDetail(
+  callId: string
+): Promise<{ ok: true; data: CallDetailData } | { ok: false; error: string }> {
   const baseUrl = process.env.API_BASE_URL ?? "http://localhost:8787";
-  const url = new URL("/dashboard", baseUrl);
+  const url = new URL(`/dashboard/calls/${encodeURIComponent(callId)}`, baseUrl);
   url.searchParams.set("client_slug", process.env.DASHBOARD_CLIENT_SLUG ?? "default");
 
   try {
@@ -279,36 +271,46 @@ async function getDashboard(): Promise<
     if (!response.ok) {
       return {
         ok: false,
-        error: `Dashboard API returned ${response.status}. Check API_BASE_URL and DASHBOARD_API_KEY.`
+        error: `Call API returned ${response.status}. Check API_BASE_URL and DASHBOARD_API_KEY.`
       };
     }
 
-    return { ok: true, data: (await response.json()) as DashboardData };
+    return { ok: true, data: (await response.json()) as CallDetailData };
   } catch (error) {
     return {
       ok: false,
-      error: `Dashboard API is unavailable: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      error: `Call API is unavailable: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
 
-function fallbackDashboard(): DashboardData {
+function fallbackCallDetail(callId: string): CallDetailData {
   return {
     client: { name: "Waxwing Voice Pro", timezone: "America/Chicago" },
-    counts: { activeProperties: 0, calendarConnections: 0 },
-    recentCalls: [],
+    call: {
+      id: callId,
+      startedAt: new Date().toISOString(),
+      status: "unknown",
+      showingRequested: false,
+      callbackRequested: false,
+      complianceEventCount: 0,
+      lead: {},
+      transcript: [],
+      audioFiles: []
+    },
     generatedAt: new Date().toISOString()
   };
 }
 
-function capturedRows(call: DashboardData["recentCalls"][number]) {
+function capturedRows(call: DashboardCall) {
   const lead = call.lead ?? {};
   const rows = [
     { label: "Caller name", value: stringValue(call.callerName ?? lead.callerName) },
     { label: "Phone", value: stringValue(call.callerPhone ?? lead.callerPhone) },
-    { label: "Property", value: stringValue(call.propertyAddress ?? lead.propertyAddress ?? lead.propertyNameRaw) },
+    {
+      label: "Property",
+      value: stringValue(call.propertyAddress ?? lead.propertyAddress ?? lead.propertyNameRaw)
+    },
     { label: "Monthly rent", value: moneyValue(lead.monthlyRentCents) },
     { label: "Adults", value: stringValue(lead.adultCount) },
     { label: "Move-in date", value: stringValue(lead.desiredMoveInDate) },
@@ -344,7 +346,7 @@ function formatTime(value: string, timezone: string): string {
   }).format(new Date(value));
 }
 
-function showingLabel(call: DashboardData["recentCalls"][number]): string {
+function showingLabel(call: DashboardCall): string {
   if (call.outcome === "showing_booked") return "Booked";
   if (call.showingRequested) return "Requested";
   return "None";
@@ -393,6 +395,6 @@ function formatBytes(value: number): string {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function firstManagerEmail(data: DashboardData): string {
+function firstManagerEmail(data: CallDetailData): string {
   return data.client.managerEmails?.[0] ?? "alex@waxwingfactory.com";
 }
