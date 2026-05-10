@@ -205,7 +205,7 @@ export class TwilioMediaSession {
   private async failAndClose(error: unknown): Promise<void> {
     if (this.finalized) return;
     if (this.callState) {
-      this.callState.fail(error instanceof Error ? error.message : String(error));
+      this.callState.fail(errorToMessage(error));
       await this.deps.repository.updateCall(this.callState.value).catch((updateError) => {
         this.deps.log.warn({ error: updateError }, "Failed to persist failed call state");
       });
@@ -213,6 +213,25 @@ export class TwilioMediaSession {
     this.geminiSession?.close();
     this.deps.socket.close();
   }
+}
+
+function errorToMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error) {
+    const record = error as Record<string, unknown>;
+    const nestedError = record.error;
+    if (nestedError instanceof Error) return nestedError.message;
+    if (typeof nestedError === "string") return nestedError;
+    if (typeof record.message === "string") return record.message;
+    if (typeof record.reason === "string") return record.reason;
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
 
 type TwilioMessage =
