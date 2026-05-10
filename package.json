@@ -8,7 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:api",
+    "build:api": "npm run build --workspace @waxwing/core && npm run build --workspace @waxwing/db && npm run build --workspace @waxwing/api",
+    "build:all": "npm run build:api && npm run build:web",
+    "build:web": "npm run build --workspace @waxwing/web",
     "dev": "npm run dev --workspace @waxwing/api",
     "dev:web": "npm run dev --workspace @waxwing/web",
     "start": "npm run start --workspace @waxwing/api",
