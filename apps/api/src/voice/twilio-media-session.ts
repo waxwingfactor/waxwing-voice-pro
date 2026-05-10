@@ -169,6 +169,7 @@ export class TwilioMediaSession {
 
   private sendAudioToTwilio(pcm24k: Buffer): void {
     if (!this.streamSid) return;
+    this.recorder.addOutboundPcm24(pcm24k);
     const payload = geminiPcm24ToTwilioBase64MuLaw(pcm24k);
     this.recorder.addOutboundMuLawBase64(payload);
     this.deps.socket.send(

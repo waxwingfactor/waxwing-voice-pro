@@ -10,11 +10,11 @@ import {
   MapPinned,
   MessageSquareText,
   PhoneCall,
-  PlayCircle,
   ShieldCheck,
   SlidersHorizontal,
   TriangleAlert
 } from "lucide-react";
+import { CallAudioPlayer } from "../../components/call-audio-player";
 
 export const dynamic = "force-dynamic";
 
@@ -211,21 +211,11 @@ function RecordingPlayers({ call }: { call: DashboardCall }) {
   return (
     <div className="audioList">
       {primaryFile ? (
-        <div className="audioTrack primaryAudioTrack">
-          <div>
-            <span className="playBubble">
-              <PlayCircle size={36} aria-hidden />
-            </span>
-            <strong>{audioLabel(primaryFile.kind)}</strong>
-            <span>{formatBytes(primaryFile.byteSize)}</span>
-          </div>
-          <div className="waveform" aria-hidden>
-            {Array.from({ length: 80 }).map((_, index) => (
-              <i key={index} style={{ "--h": `${24 + ((index * 17) % 58)}%` } as React.CSSProperties} />
-            ))}
-          </div>
-          <audio controls preload="none" src={primaryFile.signedUrl} />
-        </div>
+        <CallAudioPlayer
+          label={audioLabel(primaryFile.kind)}
+          meta={`${formatBytes(primaryFile.byteSize)} · high-quality call mix`}
+          src={primaryFile.signedUrl ?? ""}
+        />
       ) : (
         <p className="emptyState">
           This older call only has archived raw files. New calls will show one playable

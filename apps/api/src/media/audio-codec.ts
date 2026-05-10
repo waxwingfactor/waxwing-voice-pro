@@ -28,12 +28,30 @@ export function upsample8kTo16k(pcm8k: Buffer): Buffer {
   return out;
 }
 
+export function upsample8kTo24k(pcm8k: Buffer): Buffer {
+  const inputSamples = Math.floor(pcm8k.length / 2);
+  if (inputSamples === 0) return Buffer.alloc(0);
+
+  const outputSamples = inputSamples * 3;
+  const out = Buffer.alloc(outputSamples * 2);
+  for (let i = 0; i < inputSamples; i += 1) {
+    const current = pcm8k.readInt16LE(i * 2);
+    const next = i + 1 < inputSamples ? pcm8k.readInt16LE((i + 1) * 2) : current;
+    out.writeInt16LE(current, i * 6);
+    out.writeInt16LE(clampPcm16(Math.round(current + (next - current) / 3)), i * 6 + 2);
+    out.writeInt16LE(clampPcm16(Math.round(current + ((next - current) * 2) / 3)), i * 6 + 4);
+  }
+  return out;
+}
+
 export function downsample24kTo8k(pcm24k: Buffer): Buffer {
   const inputSamples = Math.floor(pcm24k.length / 2);
   const outputSamples = Math.floor(inputSamples / 3);
   const out = Buffer.alloc(outputSamples * 2);
   for (let i = 0; i < outputSamples; i += 1) {
-    out.writeInt16LE(pcm24k.readInt16LE(i * 3 * 2), i * 2);
+    const center = i * 3 + 1;
+    const sample = weightedSample(pcm24k, inputSamples, center);
+    out.writeInt16LE(clampPcm16(Math.round(sample * 0.88)), i * 2);
   }
   return out;
 }
@@ -44,7 +62,7 @@ export function twilioBase64MuLawToGeminiPcm16(payload: string): Buffer {
 }
 
 export function geminiPcm24ToTwilioBase64MuLaw(pcm24: Buffer): string {
-  return encodePcm16ToMuLaw(downsample24kTo8k(pcm24)).toString("base64");
+  return encodePcm16ToMuLaw(conditionForMuLaw(downsample24kTo8k(pcm24))).toString("base64");
 }
 
 export function muLaw8kToWav(muLaw: Buffer): Buffer {
@@ -101,4 +119,41 @@ function linearToMuLaw(sample: number): number {
 
   const mantissa = (magnitude >> (exponent + 3)) & 0x0f;
   return ~(sign | (exponent << 4) | mantissa) & 0xff;
+}
+
+function weightedSample(pcm16: Buffer, sampleCount: number, center: number): number {
+  const offsets = [-3, -2, -1, 0, 1, 2, 3];
+  const weights = [1, 2, 3, 4, 3, 2, 1];
+  let sum = 0;
+  let weightSum = 0;
+  for (let i = 0; i < offsets.length; i += 1) {
+    const index = Math.max(0, Math.min(sampleCount - 1, center + offsets[i]));
+    const weight = weights[i];
+    sum += pcm16.readInt16LE(index * 2) * weight;
+    weightSum += weight;
+  }
+  return sum / weightSum;
+}
+
+function conditionForMuLaw(pcm16: Buffer): Buffer {
+  const out = Buffer.alloc(pcm16.length);
+  const sampleCount = Math.floor(pcm16.length / 2);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const sample = pcm16.readInt16LE(i * 2);
+    out.writeInt16LE(softLimit(sample), i * 2);
+  }
+  return out;
+}
+
+function softLimit(value: number): number {
+  const threshold = 26000;
+  const abs = Math.abs(value);
+  if (abs <= threshold) return clampPcm16(value);
+  const sign = value < 0 ? -1 : 1;
+  const excess = abs - threshold;
+  return clampPcm16(sign * (threshold + excess * 0.35));
+}
+
+function clampPcm16(value: number): number {
+  return Math.max(-32768, Math.min(32767, value));
 }

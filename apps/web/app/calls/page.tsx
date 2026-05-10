@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   TriangleAlert
 } from "lucide-react";
+import { CallAudioPlayer } from "../components/call-audio-player";
 
 export const dynamic = "force-dynamic";
 
@@ -289,13 +290,11 @@ function RecordingPlayers({ call }: { call: DashboardData["recentCalls"][number]
   return (
     <div className="audioList">
       {primaryFile ? (
-        <div className="audioTrack primaryAudioTrack">
-          <div>
-            <strong>{audioLabel(primaryFile.kind)}</strong>
-            <span>{formatBytes(primaryFile.byteSize)}</span>
-          </div>
-          <audio controls preload="none" src={primaryFile.signedUrl} />
-        </div>
+        <CallAudioPlayer
+          label={audioLabel(primaryFile.kind)}
+          meta={`${formatBytes(primaryFile.byteSize)} · high-quality call mix`}
+          src={primaryFile.signedUrl ?? ""}
+        />
       ) : (
         <p className="emptyState">
           This older call only has archived raw files. New calls will show one playable

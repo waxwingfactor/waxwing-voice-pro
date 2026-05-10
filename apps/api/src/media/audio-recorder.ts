@@ -1,7 +1,17 @@
 import type { AppRepository, ArtifactStorage } from "@waxwing/db";
-import { decodeMuLawToPcm16, muLaw8kToWav, pcm16ToWav } from "./audio-codec.js";
+import {
+  decodeMuLawToPcm16,
+  muLaw8kToWav,
+  pcm16ToWav,
+  upsample8kTo24k
+} from "./audio-codec.js";
 
 interface TimedMuLawChunk {
+  atMs: number;
+  data: Buffer;
+}
+
+interface TimedPcmChunk {
   atMs: number;
   data: Buffer;
 }
@@ -11,6 +21,7 @@ export class CallAudioRecorder {
   private outbound: Buffer[] = [];
   private inboundTimeline: TimedMuLawChunk[] = [];
   private outboundTimeline: TimedMuLawChunk[] = [];
+  private outboundPcm24Timeline: TimedPcmChunk[] = [];
   private firstChunkAtMs?: number;
 
   addInboundMuLawBase64(payload: string): void {
@@ -23,6 +34,10 @@ export class CallAudioRecorder {
     const data = Buffer.from(payload, "base64");
     this.outbound.push(data);
     this.outboundTimeline.push({ atMs: this.elapsedMs(), data });
+  }
+
+  addOutboundPcm24(pcm24k: Buffer): void {
+    this.outboundPcm24Timeline.push({ atMs: this.elapsedMs(), data: Buffer.from(pcm24k) });
   }
 
   async flush(params: {
@@ -70,13 +85,16 @@ export class CallAudioRecorder {
     const metadata = Buffer.from(
       JSON.stringify(
         {
-          format: "audio/x-mulaw",
-          sampleRate: 8000,
+          format: "audio/wav",
+          sampleRate: 24000,
           channels: 1,
           inboundBytes: Buffer.concat(this.inbound).length,
           outboundBytes: Buffer.concat(this.outbound).length,
+          outboundHighQualityBytes: Buffer.concat(
+            this.outboundPcm24Timeline.map((chunk) => chunk.data)
+          ).length,
           note:
-            "conversation.wav is the browser-playable mixed call. Raw inbound and outbound tracks are retained for audit and recovery."
+            "conversation.wav is the browser-playable mixed call. It uses original 24 kHz Gemini PCM for assistant audio and upsampled Twilio caller audio. Raw inbound and outbound tracks are retained for audit and recovery."
         },
         null,
         2
@@ -139,7 +157,11 @@ export class CallAudioRecorder {
     repository: AppRepository;
     path: string;
   }): Promise<void> {
-    const body = mixMuLawTimelineToWav(this.inboundTimeline, this.outboundTimeline);
+    const body = mixConversationTimelineToWav(
+      this.inboundTimeline,
+      this.outboundPcm24Timeline,
+      this.outboundTimeline
+    );
     await params.storage.upload(params.path, body, "audio/wav");
     await params.repository.recordCallAudio({
       callId: params.callId,
@@ -157,16 +179,28 @@ export class CallAudioRecorder {
   }
 }
 
-function mixMuLawTimelineToWav(
+function mixConversationTimelineToWav(
   inboundChunks: TimedMuLawChunk[],
-  outboundChunks: TimedMuLawChunk[]
+  outboundPcm24Chunks: TimedPcmChunk[],
+  outboundMuLawChunks: TimedMuLawChunk[]
 ): Buffer {
-  const sampleRate = 8000;
-  const chunks = [...inboundChunks, ...outboundChunks];
-  const totalSamples = chunks.reduce((max, chunk) => {
+  const sampleRate = 24000;
+  const outboundChunks =
+    outboundPcm24Chunks.length > 0
+      ? outboundPcm24Chunks
+      : outboundMuLawChunks.map((chunk) => ({
+          atMs: chunk.atMs,
+          data: upsample8kTo24k(decodeMuLawToPcm16(chunk.data))
+        }));
+  const inboundTotalSamples = inboundChunks.reduce((max, chunk) => {
     const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
-    return Math.max(max, offsetSamples + chunk.data.byteLength);
+    return Math.max(max, offsetSamples + chunk.data.byteLength * 3);
   }, 0);
+  const outboundTotalSamples = outboundChunks.reduce((max, chunk) => {
+    const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
+    return Math.max(max, offsetSamples + Math.floor(chunk.data.byteLength / 2));
+  }, 0);
+  const totalSamples = Math.max(inboundTotalSamples, outboundTotalSamples);
 
   if (totalSamples === 0) {
     return pcm16ToWav(Buffer.alloc(0), sampleRate);
@@ -176,7 +210,7 @@ function mixMuLawTimelineToWav(
 
   for (const chunk of inboundChunks) {
     const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
-    const pcm = decodeMuLawToPcm16(chunk.data);
+    const pcm = upsample8kTo24k(decodeMuLawToPcm16(chunk.data));
     const sampleCount = Math.floor(pcm.byteLength / 2);
     for (let i = 0; i < sampleCount; i += 1) {
       const target = offsetSamples + i;
@@ -189,12 +223,15 @@ function mixMuLawTimelineToWav(
 
   for (const chunk of outboundChunks) {
     const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
-    const pcm = decodeMuLawToPcm16(chunk.data);
+    const pcm = chunk.data;
     const sampleCount = Math.floor(pcm.byteLength / 2);
     for (let i = 0; i < sampleCount; i += 1) {
       const target = offsetSamples + i;
       if (target >= totalSamples) break;
-      mixed.writeInt16LE(clampPcm16(pcm.readInt16LE(i * 2)), target * 2);
+      const sample = pcm.readInt16LE(i * 2);
+      if (Math.abs(sample) > 48) {
+        mixed.writeInt16LE(clampPcm16(sample), target * 2);
+      }
     }
   }
   return pcm16ToWav(mixed, sampleRate);
