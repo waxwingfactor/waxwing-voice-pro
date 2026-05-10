@@ -52,6 +52,32 @@ export class PostCallWorker {
       });
     }
 
+    if (shouldSendShowingConfirmation(params.call)) {
+      try {
+        const result = await this.deps.email.sendShowingConfirmationEmail({
+          client: params.client,
+          call: params.call
+        });
+        if (result) {
+          await this.deps.repository.recordEmail({
+            callId: params.call.id,
+            resendEmailId: result.id,
+            recipients: result.recipients,
+            subject: result.subject,
+            status: "sent"
+          });
+        }
+      } catch (error) {
+        await this.deps.repository.recordEmail({
+          callId: params.call.id,
+          recipients: params.call.lead.callerEmail ? [params.call.lead.callerEmail] : [],
+          subject: `Showing confirmation failed: ${params.call.id}`,
+          status: "failed",
+          errorMessage: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
     try {
       const result = await this.deps.miro.createLeadCard({
         accessToken: this.deps.miroAccessToken,
@@ -78,6 +104,15 @@ export class PostCallWorker {
       });
     }
   }
+}
+
+function shouldSendShowingConfirmation(call: CallSnapshot): boolean {
+  return Boolean(
+    call.lead.showingRequested &&
+      call.lead.requestedShowingTime &&
+      Number.isFinite(new Date(call.lead.requestedShowingTime).getTime()) &&
+      call.lead.callerEmail
+  );
 }
 
 function buildSummary(call: CallSnapshot): string {

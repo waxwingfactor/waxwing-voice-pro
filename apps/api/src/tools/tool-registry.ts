@@ -232,6 +232,7 @@ export class ToolRegistry {
       description: [
         `Caller: ${String(args.caller_name ?? "Unknown")}`,
         `Phone: ${String(args.caller_phone ?? "Unknown")}`,
+        `Email: ${String(args.caller_email ?? "Unknown")}`,
         `Call ID: ${this.deps.state.value.id}`
       ].join("\n")
     });
@@ -247,7 +248,8 @@ export class ToolRegistry {
       showingRequested: true,
       requestedShowingTime: slot.start,
       callerName: stringArg(args.caller_name) ?? stringArg(args.callerName),
-      callerPhone: stringArg(args.caller_phone) ?? stringArg(args.callerPhone)
+      callerPhone: stringArg(args.caller_phone) ?? stringArg(args.callerPhone),
+      callerEmail: stringArg(args.caller_email) ?? stringArg(args.callerEmail)
     }));
 
     return { ok: true, event_id: event.eventId, html_link: event.htmlLink };
@@ -307,6 +309,7 @@ function extractLeadUpdate(payload: Record<string, unknown>): Record<string, unk
   const update: Record<string, unknown> = {};
   copyString(payload, update, "callerName", ["callerName", "caller_name", "name"]);
   copyString(payload, update, "callerPhone", ["callerPhone", "caller_phone", "phone", "phone_number"]);
+  copyString(payload, update, "callerEmail", ["callerEmail", "caller_email", "email"]);
   copyString(payload, update, "propertyNameRaw", [
     "propertyNameRaw",
     "property_name_raw",

@@ -52,6 +52,92 @@ export class ResendEmailProvider {
     if (result.error) throw result.error;
     return { id: result.data?.id, recipients, subject };
   }
+
+  async sendShowingConfirmationEmail(params: {
+    client: ClientProfile;
+    call: CallSnapshot;
+  }): Promise<{ id?: string; recipients: string[]; subject: string } | null> {
+    const recipient = params.call.lead.callerEmail;
+    const showingTime = params.call.lead.requestedShowingTime;
+    if (!recipient || !showingTime || !isIsoDate(showingTime)) return null;
+
+    const subject = `Showing confirmed: ${params.call.lead.propertyAddress ?? "your property tour"}`;
+    const html = renderShowingConfirmationHtml(params);
+    if (!this.resend) {
+      return { recipients: [recipient], subject };
+    }
+
+    const result = await this.resend.emails.send(
+      {
+        from: this.params.from,
+        to: [recipient],
+        subject,
+        html,
+        replyTo: this.params.replyTo,
+        tags: [{ name: "call_id", value: params.call.id.slice(0, 256) }]
+      },
+      {
+        idempotencyKey: `showing-confirmation-${params.call.id}`
+      }
+    );
+
+    if (result.error) throw result.error;
+    return { id: result.data?.id, recipients: [recipient], subject };
+  }
+}
+
+function renderShowingConfirmationHtml(params: {
+  client: ClientProfile;
+  call: CallSnapshot;
+}): string {
+  const lead = params.call.lead;
+  const showingTime = lead.requestedShowingTime
+    ? formatDate(lead.requestedShowingTime)
+    : "the scheduled time";
+  const property = lead.propertyAddress ?? lead.propertyNameRaw ?? "the property";
+
+  return `
+    <!doctype html>
+    <html>
+      <body style="margin:0;padding:0;background:#F4F7F8;color:#172026;font-family:Inter,Arial,sans-serif;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F4F7F8;">
+          <tr>
+            <td align="center" style="padding:28px 16px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#FFFFFF;border:1px solid #D9E0E6;border-radius:14px;overflow:hidden;">
+                <tr>
+                  <td style="padding:28px 30px;background:#102620;color:#F6FBF8;">
+                    <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9FE0C8;">Waxwing Voice Pro</div>
+                    <h1 style="margin:10px 0 6px;font-size:26px;line-height:1.15;color:#FFFFFF;">Showing confirmed</h1>
+                    <p style="margin:0;color:#D8EEE7;font-size:15px;">${escapeHtml(params.client.name)}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 30px;">
+                    <p style="margin:0 0 16px;color:#172026;font-size:16px;line-height:1.55;">
+                      Hi ${escapeHtml(lead.callerName ?? "there")}, your showing has been scheduled.
+                    </p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #D9E0E6;border-radius:10px;overflow:hidden;">
+                      <tr>
+                        <td style="padding:12px 14px;border-bottom:1px solid #E4ECE9;color:#5E6F68;font-size:12px;font-weight:700;text-transform:uppercase;">Property</td>
+                        <td style="padding:12px 14px;border-bottom:1px solid #E4ECE9;color:#172026;font-size:14px;font-weight:700;text-align:right;">${escapeHtml(property)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 14px;color:#5E6F68;font-size:12px;font-weight:700;text-transform:uppercase;">Time</td>
+                        <td style="padding:12px 14px;color:#172026;font-size:14px;font-weight:700;text-align:right;">${escapeHtml(showingTime)}</td>
+                      </tr>
+                    </table>
+                    <p style="margin:18px 0 0;color:#66737F;font-size:14px;line-height:1.5;">
+                      If you need to make a change, please reply to this email or contact the property manager.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
 }
 
 function renderPostCallHtml(params: {
@@ -177,6 +263,7 @@ function capturedInfoRows(call: CallSnapshot): Array<{ label: string; value: str
   const rows = [
     ["Caller name", lead.callerName],
     ["Phone", lead.callerPhone],
+    ["Email", lead.callerEmail],
     ["Property", lead.propertyAddress ?? lead.propertyNameRaw],
     ["Monthly rent", moneyValue(lead.monthlyRentCents)],
     ["Adults", lead.adultCount],
@@ -240,6 +327,10 @@ function formatDate(value: string): string {
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function isIsoDate(value: string): boolean {
+  return Number.isFinite(new Date(value).getTime());
 }
 
 function escapeHtml(value: string): string {

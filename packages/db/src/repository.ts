@@ -57,6 +57,7 @@ export interface DashboardRecentCall {
   outcome?: string;
   callerName?: string;
   callerPhone?: string;
+  callerEmail?: string;
   propertyAddress?: string;
   qualificationStatus?: string;
   showingRequested: boolean;
@@ -546,6 +547,7 @@ function mapDashboardCall(row: Record<string, any>): DashboardRecentCall {
     outcome: row.outcome ?? undefined,
     callerName: stringValue(lead.callerName),
     callerPhone: stringValue(lead.callerPhone),
+    callerEmail: stringValue(lead.callerEmail),
     propertyAddress: stringValue(lead.propertyAddress) ?? stringValue(lead.propertyNameRaw),
     qualificationStatus: row.qualification?.qualifiedToApply ?? undefined,
     showingRequested: lead.showingRequested === true,
@@ -588,6 +590,7 @@ function normalizeLeadPayload(payload: Record<string, unknown>): Record<string, 
       "phone",
       "phone_number"
     ]),
+    callerEmail: firstPayloadValue(payload, ["callerEmail", "caller_email", "email"]),
     propertyAddress: firstPayloadValue(payload, ["propertyAddress", "property_address", "address"]),
     propertyNameRaw: firstPayloadValue(payload, [
       "propertyNameRaw",

@@ -33,6 +33,7 @@ interface DashboardCall {
   outcome?: string;
   callerName?: string;
   callerPhone?: string;
+  callerEmail?: string;
   propertyAddress?: string;
   qualificationStatus?: string;
   showingRequested: boolean;
@@ -324,6 +325,7 @@ function capturedRows(call: DashboardCall) {
   const rows = [
     { label: "Caller name", value: stringValue(call.callerName ?? lead.callerName) },
     { label: "Phone", value: stringValue(call.callerPhone ?? lead.callerPhone) },
+    { label: "Email", value: stringValue(call.callerEmail ?? lead.callerEmail) },
     {
       label: "Property",
       value: stringValue(call.propertyAddress ?? lead.propertyAddress ?? lead.propertyNameRaw)

@@ -78,9 +78,10 @@ export function getToolDeclarations(): Array<Record<string, unknown>> {
           start: { type: Type.STRING },
           end: { type: Type.STRING },
           caller_name: { type: Type.STRING },
-          caller_phone: { type: Type.STRING }
+          caller_phone: { type: Type.STRING },
+          caller_email: { type: Type.STRING }
         },
-        required: ["property_id", "start", "end"]
+        required: ["property_id", "start", "end", "caller_email"]
       }
     },
     {
@@ -118,7 +119,7 @@ export function getToolDeclarations(): Array<Record<string, unknown>> {
     {
       name: "log_call_event",
       description:
-        "Record a structured call event or captured field. Use this immediately after capturing caller name, phone, property address, desired move-in date, desired length of stay, callback preference, showing request, or application interest.",
+        "Record a structured call event or captured field. Use this immediately after capturing caller name, phone, email, property address, desired move-in date, desired length of stay, callback preference, showing request, or application interest.",
       parameters: {
         type: Type.OBJECT,
         properties: {
@@ -126,7 +127,7 @@ export function getToolDeclarations(): Array<Record<string, unknown>> {
           payload: {
             type: Type.OBJECT,
             description:
-              "Structured values using snake_case or camelCase keys, for example caller_name, caller_phone, property_address, desired_move_in_date, desired_length_of_stay, showing_requested, requested_showing_time, callback_requested, application_encouraged, is_lead."
+              "Structured values using snake_case or camelCase keys, for example caller_name, caller_phone, caller_email, property_address, desired_move_in_date, desired_length_of_stay, showing_requested, requested_showing_time, callback_requested, application_encouraged, is_lead."
           }
         },
         required: ["event_type", "payload"]

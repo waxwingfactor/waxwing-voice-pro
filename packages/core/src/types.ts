@@ -105,6 +105,7 @@ export interface LeadCapture {
   adultCount?: number;
   callerName?: string;
   callerPhone?: string;
+  callerEmail?: string;
   desiredMoveInDate?: string;
   desiredLengthOfStay?: string;
   showingRequested?: boolean;

@@ -333,6 +333,7 @@ function capturedInfoHtml(call: CallSnapshot): string {
   const rows = [
     ["Name", call.lead.callerName],
     ["Phone", call.lead.callerPhone],
+    ["Email", call.lead.callerEmail],
     ["Move-in", call.lead.desiredMoveInDate],
     ["Stay length", call.lead.desiredLengthOfStay],
     ["Adults", call.lead.adultCount],
