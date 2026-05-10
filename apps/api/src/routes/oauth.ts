@@ -138,10 +138,12 @@ export function registerOAuthRoutes(
       code
     });
 
+    const hasRefreshToken = Boolean(tokens.refreshToken);
     return reply.send({
       connected: true,
-      message:
-        "Copy MIRO_ACCESS_TOKEN and MIRO_REFRESH_TOKEN into Render. The refresh token lets the app create fresh access tokens for future Miro exports.",
+      message: hasRefreshToken
+        ? "Copy MIRO_ACCESS_TOKEN and MIRO_REFRESH_TOKEN into Render. The refresh token lets the app create fresh access tokens for future Miro exports."
+        : "Copy MIRO_ACCESS_TOKEN into Render. Miro did not return a refresh token for this authorization response.",
       env: {
         MIRO_ACCESS_TOKEN: tokens.accessToken,
         MIRO_REFRESH_TOKEN: tokens.refreshToken

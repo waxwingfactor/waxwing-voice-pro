@@ -280,6 +280,9 @@ Add both values to Render. `MIRO_ACCESS_TOKEN` can expire, but
 `MIRO_REFRESH_TOKEN` lets the app request a fresh access token for future Miro
 exports.
 
+If Miro only returns `MIRO_ACCESS_TOKEN` and `expires_in` is `0`, that is okay.
+Set `MIRO_ACCESS_TOKEN` and leave `MIRO_REFRESH_TOKEN` empty.
+
 For your Render API, the start URL is:
 
 ```text
