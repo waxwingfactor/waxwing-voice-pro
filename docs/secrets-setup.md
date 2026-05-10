@@ -129,6 +129,18 @@ call-artifacts
 
 The migration creates this private bucket if permissions allow it.
 
+Recommended bucket settings:
+
+- Public bucket: off
+- Restrict file size: on, 50 MB or 100 MB
+- Restrict MIME types: on
+
+Comma-separated MIME types:
+
+```text
+audio/basic,audio/wav,audio/mpeg,audio/mp4,audio/webm,application/json,text/plain
+```
+
 ## Resend
 
 ### `RESEND_API_KEY`

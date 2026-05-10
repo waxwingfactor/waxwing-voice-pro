@@ -22,7 +22,7 @@ export function registerTwilioRoutes(
   }
 ): void {
   app.post("/twilio/voice", async (request, reply) => {
-    const body = request.body as Record<string, string | undefined>;
+    const body = (request.body ?? {}) as Record<string, string | undefined>;
     const clientSlug = body.To ? "default" : "default";
     const streamUrl = new URL("/twilio/media", deps.env.TWILIO_WEBHOOK_BASE_URL);
     streamUrl.protocol = streamUrl.protocol === "https:" ? "wss:" : "ws:";
