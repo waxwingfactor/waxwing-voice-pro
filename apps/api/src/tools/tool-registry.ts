@@ -68,8 +68,8 @@ export class ToolRegistry {
     }
     return {
       status: result.status,
-      property: result.property ? publicProperty(result.property) : undefined,
-      candidates: result.candidates.map(publicProperty),
+      property: result.property ? this.publicProperty(result.property) : undefined,
+      candidates: result.candidates.map((property) => this.publicProperty(property)),
       next_best_question: result.nextBestQuestion
     };
   }
@@ -82,7 +82,7 @@ export class ToolRegistry {
       propertyAddress: fullAddress(property),
       monthlyRentCents: property.monthlyRentCents
     });
-    return { ok: true, property: publicProperty(property) };
+    return { ok: true, property: this.publicProperty(property) };
   }
 
   private async calculateQualification(args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -101,7 +101,9 @@ export class ToolRegistry {
         : undefined,
       incomeMeets3xRent: Boolean(args.income_meets_3x_rent),
       wantsCosigner: Boolean(args.wants_cosigner),
-      wantsIncreasedDeposit: Boolean(args.wants_increased_deposit)
+      wantsIncreasedDeposit: Boolean(args.wants_increased_deposit),
+      minimumCreditScore: this.deps.client.agentSettings.minimumCreditScore,
+      incomeRentMultiple: this.deps.client.agentSettings.incomeRentMultiple
     });
 
     this.deps.state.setQualification(result);
@@ -128,7 +130,7 @@ export class ToolRegistry {
       return {
         ok: false,
         code: "property_not_available_for_direct_showing",
-        property: publicProperty(property),
+        property: this.publicProperty(property),
         message:
           "This property is not available for direct showing yet. Collect the caller's preferred showing time and tell them the office will coordinate after confirming access."
       };
@@ -141,7 +143,7 @@ export class ToolRegistry {
       return {
         ok: false,
         code: "calendar_not_connected",
-        property: publicProperty(property),
+        property: this.publicProperty(property),
         error:
           "Google Calendar is not connected for this property. Collect the caller's preferred showing date or time and say the office will follow up to coordinate it."
       };
@@ -173,7 +175,7 @@ export class ToolRegistry {
 
     return {
       ok: true,
-      property: publicProperty(property),
+      property: this.publicProperty(property),
       calendar_id: calendarId,
       timezone: this.deps.client.timezone,
       slots,
@@ -194,6 +196,15 @@ export class ToolRegistry {
   }
 
   private async bookShowing(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (!this.deps.client.agentSettings.autoBookShowings) {
+      return {
+        ok: false,
+        code: "auto_booking_disabled",
+        error:
+          "Auto-booking is disabled for this client. Collect the caller's preferred showing time and say the office will follow up."
+      };
+    }
+
     const property = await this.deps.repository.getProperty(String(args.property_id ?? ""));
     if (!property) return { ok: false, error: "Property not found." };
 
@@ -287,9 +298,13 @@ export class ToolRegistry {
     });
     return { ok: true };
   }
+
+  private publicProperty(property: PropertyRecord): Record<string, unknown> {
+    return publicProperty(property, this.deps.client.agentSettings.incomeRentMultiple);
+  }
 }
 
-function publicProperty(property: PropertyRecord): Record<string, unknown> {
+function publicProperty(property: PropertyRecord, incomeRentMultiple = 3): Record<string, unknown> {
   return {
     id: property.id,
     address: fullAddress(property),
@@ -297,7 +312,9 @@ function publicProperty(property: PropertyRecord): Record<string, unknown> {
     baths: property.baths,
     rent: formatMoney(property.monthlyRentCents),
     rent_cents: property.monthlyRentCents,
-    income_threshold: formatMoney(calculateIncomeThresholdCents(property.monthlyRentCents)),
+    income_threshold: formatMoney(
+      calculateIncomeThresholdCents(property.monthlyRentCents, incomeRentMultiple)
+    ),
     pet_policy: property.petPolicy,
     stories: property.stories,
     available_date: property.availableDate,

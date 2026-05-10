@@ -21,7 +21,19 @@ const client: ClientProfile = {
   defaultShowingDurationMinutes: 30,
   defaultShowingBufferMinutes: 15,
   applicationUrl: "https://hunterpm.com/availability",
-  accessInformationPolicy: "transfer_only"
+  accessInformationPolicy: "transfer_only",
+  agentSettings: {
+    agentName: "Morgan",
+    voiceName: "Kore",
+    pace: "balanced",
+    warmth: "balanced",
+    initialGreeting:
+      "Hi, this is Morgan with Hunter Property Management. What property are you calling about?",
+    minimumCreditScore: 600,
+    incomeRentMultiple: 3,
+    autoBookShowings: true,
+    askPetsOnNoPetProperties: false
+  }
 };
 
 const properties: PropertyRecord[] = [
@@ -64,6 +76,15 @@ export class InMemoryRepository implements AppRepository {
 
   async getClientBySlug(slug: string): Promise<ClientProfile | null> {
     return slug === client.slug ? client : null;
+  }
+
+  async updateClientAgentSettings(
+    slug: string,
+    settings: Partial<ClientProfile["agentSettings"]>
+  ): Promise<ClientProfile | null> {
+    if (slug !== client.slug) return null;
+    client.agentSettings = { ...client.agentSettings, ...settings };
+    return client;
   }
 
   async getDashboardSnapshot(clientSlug: string) {

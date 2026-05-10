@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AgentSettings,
   CallSnapshot,
   ClientProfile,
   PropertyRecord,
@@ -50,6 +51,8 @@ export interface CalendarConnection {
   scopes: string[];
 }
 
+export type AgentSettingsUpdate = Partial<AgentSettings>;
+
 export interface DashboardRecentCall {
   id: string;
   startedAt: string;
@@ -97,6 +100,10 @@ export interface DashboardCallDetail {
 
 export interface AppRepository {
   getClientBySlug(slug: string): Promise<ClientProfile | null>;
+  updateClientAgentSettings(
+    clientSlug: string,
+    settings: AgentSettingsUpdate
+  ): Promise<ClientProfile | null>;
   getDashboardSnapshot(clientSlug: string): Promise<DashboardRepositorySnapshot | null>;
   getDashboardCall(clientSlug: string, callId: string): Promise<DashboardCallDetail | null>;
   listActiveProperties(clientId: string): Promise<PropertyRecord[]>;
@@ -157,6 +164,28 @@ export class SupabaseAppRepository implements AppRepository {
       .select("*")
       .eq("slug", slug)
       .eq("active", true)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? mapClient(data) : null;
+  }
+
+  async updateClientAgentSettings(
+    clientSlug: string,
+    settings: AgentSettingsUpdate
+  ): Promise<ClientProfile | null> {
+    const update = clientSettingsToRow(settings);
+    if (Object.keys(update).length === 0) return this.getClientBySlug(clientSlug);
+
+    const { data, error } = await this.supabase
+      .from("clients")
+      .update({
+        ...update,
+        updated_at: new Date().toISOString()
+      })
+      .eq("slug", clientSlug)
+      .eq("active", true)
+      .select("*")
       .maybeSingle();
 
     if (error) throw error;
@@ -476,8 +505,35 @@ function mapClient(row: Record<string, any>): ClientProfile {
     defaultShowingDurationMinutes: row.default_showing_duration_minutes,
     defaultShowingBufferMinutes: row.default_showing_buffer_minutes,
     applicationUrl: row.application_url,
-    accessInformationPolicy: row.access_information_policy
+    accessInformationPolicy: row.access_information_policy,
+    agentSettings: {
+      agentName: row.agent_name ?? "Morgan",
+      voiceName: row.agent_voice_name ?? "Kore",
+      pace: row.agent_pace ?? "balanced",
+      warmth: row.agent_warmth ?? "balanced",
+      initialGreeting:
+        row.agent_initial_greeting ??
+        `Hi, this is Morgan with ${row.name}. What property are you calling about?`,
+      minimumCreditScore: Number(row.qualification_min_credit_score ?? 600),
+      incomeRentMultiple: Number(row.qualification_income_multiple ?? 3),
+      autoBookShowings: row.auto_book_showings !== false,
+      askPetsOnNoPetProperties: row.ask_pets_on_no_pet_properties === true
+    }
   };
+}
+
+function clientSettingsToRow(settings: AgentSettingsUpdate): Record<string, unknown> {
+  return compactRecord({
+    agent_name: settings.agentName,
+    agent_voice_name: settings.voiceName,
+    agent_pace: settings.pace,
+    agent_warmth: settings.warmth,
+    agent_initial_greeting: settings.initialGreeting,
+    qualification_min_credit_score: settings.minimumCreditScore,
+    qualification_income_multiple: settings.incomeRentMultiple,
+    auto_book_showings: settings.autoBookShowings,
+    ask_pets_on_no_pet_properties: settings.askPetsOnNoPetProperties
+  });
 }
 
 function mapProperty(row: Record<string, any>): PropertyRecord {

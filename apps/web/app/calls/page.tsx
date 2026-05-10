@@ -10,6 +10,7 @@ import {
   PhoneCall,
   PlayCircle,
   ShieldCheck,
+  SlidersHorizontal,
   TriangleAlert
 } from "lucide-react";
 
@@ -81,6 +82,9 @@ export default async function CallsPage() {
           </a>
           <a className="active" href="/calls">
             <FileAudio size={18} aria-hidden /> Calls
+          </a>
+          <a href="/settings">
+            <SlidersHorizontal size={18} aria-hidden /> Settings
           </a>
           <a href="/#calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar

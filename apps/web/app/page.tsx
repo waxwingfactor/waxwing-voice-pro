@@ -7,6 +7,7 @@ import {
   MapPinned,
   PhoneCall,
   ShieldCheck,
+  SlidersHorizontal,
   TriangleAlert,
   UserRoundCheck
 } from "lucide-react";
@@ -76,6 +77,9 @@ export default async function DashboardPage() {
           </a>
           <a href="/calls">
             <FileAudio size={18} aria-hidden /> Calls
+          </a>
+          <a href="/settings">
+            <SlidersHorizontal size={18} aria-hidden /> Settings
           </a>
           <a href="#calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar

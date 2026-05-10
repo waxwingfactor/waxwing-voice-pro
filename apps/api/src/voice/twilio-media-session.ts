@@ -106,7 +106,18 @@ export class TwilioMediaSession {
     });
 
     this.geminiSession = await this.deps.gemini.connect(
-      { clientName: client.name, timezone: client.timezone },
+      {
+        clientName: client.name,
+        timezone: client.timezone,
+        agentName: client.agentSettings.agentName,
+        voiceName: client.agentSettings.voiceName,
+        pace: client.agentSettings.pace,
+        warmth: client.agentSettings.warmth,
+        minimumCreditScore: client.agentSettings.minimumCreditScore,
+        incomeRentMultiple: client.agentSettings.incomeRentMultiple,
+        autoBookShowings: client.agentSettings.autoBookShowings,
+        askPetsOnNoPetProperties: client.agentSettings.askPetsOnNoPetProperties
+      },
       {
         onAudio: (pcm24k) => this.sendAudioToTwilio(pcm24k),
         onInputTranscript: (text) => this.recordTranscript("caller", text),
@@ -144,7 +155,7 @@ export class TwilioMediaSession {
     this.callState.activate();
     await this.deps.repository.updateCall(this.callState.value);
     this.geminiSession.sendText(
-      "Start the phone call now with this exact short greeting: Hi, this is Morgan with Hunter Property Management. What property are you calling about?"
+      `Start the phone call now with this exact short greeting: ${client.agentSettings.initialGreeting}`
     );
   }
 

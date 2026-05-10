@@ -620,6 +620,80 @@ a.iconButton {
   background: #eef9f4;
 }
 
+.settingsForm {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfd;
+  color: var(--ink);
+  font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.fullField {
+  margin-top: 18px;
+}
+
+.toggleList {
+  display: grid;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 74px;
+  border-bottom: 1px solid var(--line);
+}
+
+.toggleRow span {
+  display: grid;
+  gap: 4px;
+}
+
+.toggleRow small {
+  color: var(--muted);
+}
+
+.toggleRow input {
+  width: 54px;
+  height: 30px;
+  accent-color: var(--accent-strong);
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -655,7 +729,8 @@ a.iconButton {
 
   .callRecord summary,
   .callDetailGrid,
-  .infoGrid {
+  .infoGrid,
+  .settingsGrid {
     grid-template-columns: 1fr;
   }
 

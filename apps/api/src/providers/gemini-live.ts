@@ -26,7 +26,18 @@ export class GeminiLiveClient {
   constructor(private readonly params: { apiKey?: string; model: string }) {}
 
   async connect(
-    context: { clientName?: string; timezone?: string },
+    context: {
+      clientName?: string;
+      timezone?: string;
+      agentName?: string;
+      voiceName?: string;
+      pace?: string;
+      warmth?: string;
+      minimumCreditScore?: number;
+      incomeRentMultiple?: number;
+      autoBookShowings?: boolean;
+      askPetsOnNoPetProperties?: boolean;
+    },
     handlers: GeminiLiveHandlers
   ): Promise<GeminiLiveSession> {
     if (!this.params.apiKey) {
@@ -52,8 +63,24 @@ export class GeminiLiveClient {
         responseModalities: [Modality.AUDIO],
         systemInstruction: buildSystemInstruction({
           clientName: context.clientName,
-          timezone: context.timezone
+          timezone: context.timezone,
+          agentName: context.agentName,
+          pace: context.pace,
+          warmth: context.warmth,
+          minimumCreditScore: context.minimumCreditScore,
+          incomeRentMultiple: context.incomeRentMultiple,
+          autoBookShowings: context.autoBookShowings,
+          askPetsOnNoPetProperties: context.askPetsOnNoPetProperties
         }),
+        speechConfig: context.voiceName
+          ? {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: context.voiceName
+                }
+              }
+            }
+          : undefined,
         inputAudioTranscription: {},
         outputAudioTranscription: {},
         tools: [{ functionDeclarations: getToolDeclarations() }]

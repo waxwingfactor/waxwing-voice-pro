@@ -48,6 +48,22 @@ export interface ClientProfile {
   defaultShowingBufferMinutes: number;
   applicationUrl: string;
   accessInformationPolicy: "transfer_only" | "disabled";
+  agentSettings: AgentSettings;
+}
+
+export type AgentPace = "slow" | "balanced" | "fast";
+export type AgentWarmth = "reserved" | "balanced" | "warm";
+
+export interface AgentSettings {
+  agentName: string;
+  voiceName: string;
+  pace: AgentPace;
+  warmth: AgentWarmth;
+  initialGreeting: string;
+  minimumCreditScore: number;
+  incomeRentMultiple: number;
+  autoBookShowings: boolean;
+  askPetsOnNoPetProperties: boolean;
 }
 
 export interface PropertyRecord {
@@ -86,6 +102,8 @@ export interface QualificationInput {
   incomeMeets3xRent: boolean;
   wantsCosigner?: boolean;
   wantsIncreasedDeposit?: boolean;
+  minimumCreditScore?: number;
+  incomeRentMultiple?: number;
 }
 
 export interface QualificationResult {

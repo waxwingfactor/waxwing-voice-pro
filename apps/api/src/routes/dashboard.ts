@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppRepository, ArtifactStorage } from "@waxwing/db";
+import type { AgentSettings } from "@waxwing/core";
 import type { AppEnv } from "../config/env.js";
 
 export function registerDashboardRoutes(
@@ -79,6 +80,122 @@ export function registerDashboardRoutes(
       generatedAt: new Date().toISOString()
     };
   });
+
+  app.get("/dashboard/settings", async (request, reply) => {
+    if (!authorizeDashboardRequest(request, reply, deps.env)) return;
+
+    const query = request.query as Record<string, string | undefined>;
+    const clientSlug = query.client_slug ?? "default";
+    const client = await deps.repository.getClientBySlug(clientSlug);
+    if (!client) {
+      return reply.code(404).send({ error: `Client not found: ${clientSlug}` });
+    }
+
+    return {
+      client: {
+        id: client.id,
+        slug: client.slug,
+        name: client.name,
+        timezone: client.timezone
+      },
+      settings: client.agentSettings,
+      voiceOptions: VOICE_OPTIONS,
+      generatedAt: new Date().toISOString()
+    };
+  });
+
+  app.patch("/dashboard/settings", async (request, reply) => {
+    if (!authorizeDashboardRequest(request, reply, deps.env)) return;
+
+    const query = request.query as Record<string, string | undefined>;
+    const clientSlug = query.client_slug ?? "default";
+    const body = request.body as Record<string, unknown>;
+    const settings = sanitizeAgentSettings(body);
+    const client = await deps.repository.updateClientAgentSettings(clientSlug, settings);
+    if (!client) {
+      return reply.code(404).send({ error: `Client not found: ${clientSlug}` });
+    }
+
+    return {
+      client: {
+        id: client.id,
+        slug: client.slug,
+        name: client.name,
+        timezone: client.timezone
+      },
+      settings: client.agentSettings,
+      voiceOptions: VOICE_OPTIONS,
+      generatedAt: new Date().toISOString()
+    };
+  });
+}
+
+const VOICE_OPTIONS = [
+  { name: "Kore", description: "Clear, professional, steady" },
+  { name: "Puck", description: "Bright, energetic, friendly" },
+  { name: "Aoede", description: "Warm, conversational, light" },
+  { name: "Charon", description: "Calm, grounded, mature" },
+  { name: "Fenrir", description: "Confident, direct, crisp" },
+  { name: "Leda", description: "Soft, smooth, approachable" },
+  { name: "Orus", description: "Measured, polished, neutral" },
+  { name: "Zephyr", description: "Airy, upbeat, relaxed" }
+];
+
+function sanitizeAgentSettings(body: Record<string, unknown>): Partial<AgentSettings> {
+  const settings: Partial<AgentSettings> = {
+    agentName: boundedString(body.agentName, 40),
+    voiceName: voiceName(body.voiceName),
+    pace: option(body.pace, ["slow", "balanced", "fast"]),
+    warmth: option(body.warmth, ["reserved", "balanced", "warm"]),
+    initialGreeting: boundedString(body.initialGreeting, 240),
+    minimumCreditScore: integerInRange(body.minimumCreditScore, 300, 850),
+    incomeRentMultiple: numberInRange(body.incomeRentMultiple, 1, 6),
+    autoBookShowings: booleanValue(body.autoBookShowings),
+    askPetsOnNoPetProperties: booleanValue(body.askPetsOnNoPetProperties)
+  };
+  return compact(settings);
+}
+
+function boundedString(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, maxLength);
+}
+
+function voiceName(value: unknown): string | undefined {
+  const candidate = boundedString(value, 40);
+  if (!candidate) return undefined;
+  return VOICE_OPTIONS.some((option) => option.name === candidate) ? candidate : undefined;
+}
+
+function option<T extends string>(value: unknown, options: T[]): T | undefined {
+  return typeof value === "string" && options.includes(value as T) ? (value as T) : undefined;
+}
+
+function integerInRange(value: unknown, min: number, max: number): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) return undefined;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function numberInRange(value: unknown, min: number, max: number): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.min(max, Math.max(min, Math.round(parsed * 100) / 100));
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined)
+  ) as Partial<T>;
 }
 
 async function createSignedAudioUrl(
