@@ -1,0 +1,298 @@
+:root {
+  color-scheme: light;
+  --ink: #172026;
+  --muted: #66737f;
+  --line: #d9e0e6;
+  --panel: #ffffff;
+  --soft: #f4f7f8;
+  --accent: #147d64;
+  --accent-strong: #0b5f4b;
+  --warn: #b66a00;
+  --danger: #a94242;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--soft);
+  color: var(--ink);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #102620;
+  color: #f6fbf8;
+  padding: 24px 18px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  font-weight: 700;
+}
+
+nav {
+  display: grid;
+  gap: 6px;
+  margin-top: 30px;
+}
+
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: #d8eee7;
+  text-decoration: none;
+}
+
+nav a.active,
+nav a:hover {
+  background: #1d463a;
+  color: #ffffff;
+}
+
+.workspace {
+  padding: 28px;
+}
+
+.topbar,
+.sectionHeader,
+.metrics,
+.split {
+  display: flex;
+  gap: 18px;
+}
+
+.topbar,
+.sectionHeader {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 30px;
+}
+
+h2 {
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+
+p {
+  color: var(--muted);
+}
+
+.iconButton,
+button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button {
+  padding: 0 14px;
+}
+
+.iconButton {
+  display: grid;
+  width: 42px;
+  place-items: center;
+  padding: 0;
+}
+
+.metrics {
+  margin: 28px 0;
+}
+
+.metric,
+.band,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 6px 12px;
+  flex: 1;
+  min-height: 112px;
+  padding: 18px;
+}
+
+.metricIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e4f3ed;
+  color: var(--accent-strong);
+}
+
+.metric span {
+  align-self: center;
+  color: var(--muted);
+}
+
+.metric strong {
+  grid-column: 2;
+  font-size: 28px;
+}
+
+.band,
+.panel {
+  padding: 20px;
+}
+
+.table {
+  display: grid;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 90px 1.1fr 1.5fr 1fr 1fr;
+  min-height: 46px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row span {
+  min-width: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row.header {
+  background: #eef3f5;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.split {
+  margin-top: 18px;
+}
+
+.panel {
+  flex: 1;
+}
+
+.statusList {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 18px 0 0;
+  list-style: none;
+}
+
+.statusList li,
+.callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.statusList svg,
+.callout svg {
+  color: var(--accent-strong);
+  flex: 0 0 auto;
+}
+
+.statusList li:nth-child(n + 3) svg {
+  color: var(--warn);
+}
+
+.callout {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid #b9ded1;
+  border-radius: 8px;
+  background: #eef9f4;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace {
+    padding: 18px;
+  }
+
+  .topbar,
+  .sectionHeader,
+  .metrics,
+  .split {
+    flex-direction: column;
+  }
+
+  .row {
+    grid-template-columns: 76px 1fr;
+    padding: 8px 0;
+  }
+
+  .row span:nth-child(n + 3) {
+    grid-column: 2;
+  }
+}
