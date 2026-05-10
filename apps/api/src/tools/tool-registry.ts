@@ -61,6 +61,10 @@ export class ToolRegistry {
     const result = matchProperty(query, properties);
     if (result.property) {
       this.deps.state.setProperty(result.property.id);
+      this.deps.state.mergeLead({
+        propertyAddress: fullAddress(result.property),
+        monthlyRentCents: result.property.monthlyRentCents
+      });
     }
     return {
       status: result.status,
@@ -239,10 +243,12 @@ export class ToolRegistry {
       slot,
       status: "booked"
     });
-    this.deps.state.mergeLead({
+    this.deps.state.mergeLead(compactLeadUpdate({
       showingRequested: true,
-      requestedShowingTime: slot.start
-    });
+      requestedShowingTime: slot.start,
+      callerName: stringArg(args.caller_name) ?? stringArg(args.callerName),
+      callerPhone: stringArg(args.caller_phone) ?? stringArg(args.callerPhone)
+    }));
 
     return { ok: true, event_id: event.eventId, html_link: event.htmlLink };
   }
@@ -298,17 +304,122 @@ function publicProperty(property: PropertyRecord): Record<string, unknown> {
 }
 
 function extractLeadUpdate(payload: Record<string, unknown>): Record<string, unknown> {
-  const allowed = [
-    "callerName",
-    "callerPhone",
+  const update: Record<string, unknown> = {};
+  copyString(payload, update, "callerName", ["callerName", "caller_name", "name"]);
+  copyString(payload, update, "callerPhone", ["callerPhone", "caller_phone", "phone", "phone_number"]);
+  copyString(payload, update, "propertyNameRaw", [
+    "propertyNameRaw",
+    "property_name_raw",
+    "propertyName",
+    "property_name"
+  ]);
+  copyString(payload, update, "propertyAddress", [
+    "propertyAddress",
+    "property_address",
+    "address"
+  ]);
+  copyString(payload, update, "desiredMoveInDate", [
     "desiredMoveInDate",
+    "desired_move_in_date",
+    "move_in_date"
+  ]);
+  copyString(payload, update, "desiredLengthOfStay", [
     "desiredLengthOfStay",
-    "callbackRequested",
+    "desired_length_of_stay",
+    "length_of_stay"
+  ]);
+  copyString(payload, update, "requestedShowingTime", [
+    "requestedShowingTime",
+    "requested_showing_time",
+    "showing_time"
+  ]);
+  copyNumber(payload, update, "adultCount", ["adultCount", "adult_count", "people_count"]);
+  copyNumber(payload, update, "monthlyRentCents", ["monthlyRentCents", "monthly_rent_cents"]);
+  copyMoney(payload, update, "monthlyRentCents", ["monthlyRent", "monthly_rent", "rent"]);
+  copyBoolean(payload, update, "callbackRequested", ["callbackRequested", "callback_requested"]);
+  copyBoolean(payload, update, "okWithPropertyStats", [
     "okWithPropertyStats",
+    "ok_with_property_stats"
+  ]);
+  copyBoolean(payload, update, "applicationEncouraged", [
     "applicationEncouraged",
-    "showingRequested"
-  ];
-  return Object.fromEntries(Object.entries(payload).filter(([key]) => allowed.includes(key)));
+    "application_encouraged"
+  ]);
+  copyBoolean(payload, update, "showingRequested", ["showingRequested", "showing_requested"]);
+  copyBoolean(payload, update, "isLead", ["isLead", "is_lead"]);
+  return update;
+}
+
+function copyString(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
+  key: string,
+  aliases: string[]
+): void {
+  const value = firstValue(source, aliases);
+  if (typeof value === "string" && value.trim()) target[key] = value.trim();
+}
+
+function copyNumber(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
+  key: string,
+  aliases: string[]
+): void {
+  const value = firstValue(source, aliases);
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (Number.isFinite(numeric)) target[key] = numeric;
+}
+
+function copyMoney(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
+  key: string,
+  aliases: string[]
+): void {
+  const value = firstValue(source, aliases);
+  if (typeof value !== "number" && typeof value !== "string") return;
+  const normalized = Number(String(value).replace(/[$,\s]/g, ""));
+  if (Number.isFinite(normalized)) target[key] = Math.round(normalized * 100);
+}
+
+function copyBoolean(
+  source: Record<string, unknown>,
+  target: Record<string, unknown>,
+  key: string,
+  aliases: string[]
+): void {
+  const value = firstValue(source, aliases);
+  const parsed = parseBoolean(value);
+  if (typeof parsed === "boolean") target[key] = parsed;
+}
+
+function firstValue(source: Record<string, unknown>, aliases: string[]): unknown {
+  for (const alias of aliases) {
+    if (source[alias] !== undefined && source[alias] !== null && source[alias] !== "") {
+      return source[alias];
+    }
+  }
+  return undefined;
+}
+
+function parseBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "yes", "y"].includes(normalized)) return true;
+  if (["false", "no", "n"].includes(normalized)) return false;
+  return undefined;
+}
+
+function stringArg(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function compactLeadUpdate<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined)
+  ) as T;
 }
 
 function normalizeTransferReason(reason: string): TransferReason {

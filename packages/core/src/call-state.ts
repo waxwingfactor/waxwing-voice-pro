@@ -56,6 +56,12 @@ export class CallState {
   addTranscript(speaker: "caller" | "agent" | "system", text: string, at = new Date()): void {
     const trimmed = text.trim();
     if (!trimmed) return;
+    const last = this.snapshot.transcript.at(-1);
+    if (last?.speaker === speaker && shouldMergeTranscriptTurn(last.at, at)) {
+      last.text = mergeTranscriptText(last.text, trimmed);
+      last.at = at.toISOString();
+      return;
+    }
     this.snapshot.transcript.push({
       speaker,
       text: trimmed,
@@ -85,4 +91,18 @@ export class CallState {
     this.snapshot.endedAt = endedAt.toISOString();
     this.addTranscript("system", `Failure: ${reason}`, endedAt);
   }
+}
+
+function shouldMergeTranscriptTurn(previousAt: string, nextAt: Date): boolean {
+  const previousTime = new Date(previousAt).getTime();
+  if (!Number.isFinite(previousTime)) return false;
+  return nextAt.getTime() - previousTime < 12_000;
+}
+
+function mergeTranscriptText(previous: string, next: string): string {
+  if (previous === next || previous.endsWith(next)) return previous;
+  if (next.startsWith(previous)) return next;
+  if (/^[,.;:!?]/.test(next)) return `${previous}${next}`;
+  if (/[([{/"']$/.test(previous)) return `${previous}${next}`;
+  return `${previous} ${next}`;
 }

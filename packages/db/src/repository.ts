@@ -9,7 +9,13 @@ import type {
 
 export interface CallAudioFileInput {
   callId: string;
-  kind: "inbound_raw_ulaw" | "outbound_raw_ulaw" | "inbound_wav" | "outbound_wav" | "mixed_wav" | "metadata";
+  kind:
+    | "inbound_raw_ulaw"
+    | "outbound_raw_ulaw"
+    | "inbound_wav"
+    | "outbound_wav"
+    | "mixed_wav"
+    | "metadata";
   storagePath: string;
   mimeType: string;
   byteSize: number;
@@ -157,7 +163,7 @@ export class SupabaseAppRepository implements AppRepository {
         this.supabase
           .from("calls")
           .select(
-            "id, started_at, status, outcome, lead, qualification, compliance_events, transcript, call_audio_files(kind, storage_path, mime_type, byte_size, created_at)"
+            "id, started_at, status, outcome, lead, qualification, compliance_events, transcript, properties(street_number, street_name, city, state, monthly_rent_cents), call_events(event_type, payload, created_at), call_audio_files(kind, storage_path, mime_type, byte_size, created_at)"
           )
           .eq("client_id", client.id)
           .gte("started_at", startOfToday)
@@ -490,22 +496,39 @@ function callRow(snapshot: CallSnapshot): Record<string, unknown> {
 }
 
 function mapDashboardCall(row: Record<string, any>): DashboardRecentCall {
-  const lead = row.lead ?? {};
+  const propertyLead = row.properties
+    ? {
+        propertyAddress: [
+          row.properties.street_number,
+          row.properties.street_name,
+          row.properties.city,
+          row.properties.state
+        ]
+          .filter(Boolean)
+          .join(" "),
+        monthlyRentCents: row.properties.monthly_rent_cents
+      }
+    : {};
+  const lead = compactRecord({
+    ...propertyLead,
+    ...leadFromEvents(row.call_events),
+    ...(row.lead ?? {})
+  });
   return {
     id: row.id,
     startedAt: row.started_at,
     status: row.status,
     outcome: row.outcome ?? undefined,
-    callerName: lead.callerName ?? undefined,
-    callerPhone: lead.callerPhone ?? undefined,
-    propertyAddress: lead.propertyAddress ?? lead.propertyNameRaw ?? undefined,
+    callerName: stringValue(lead.callerName),
+    callerPhone: stringValue(lead.callerPhone),
+    propertyAddress: stringValue(lead.propertyAddress) ?? stringValue(lead.propertyNameRaw),
     qualificationStatus: row.qualification?.qualifiedToApply ?? undefined,
     showingRequested: lead.showingRequested === true,
     callbackRequested: lead.callbackRequested === true,
     complianceEventCount: complianceEventCount(row.compliance_events),
     lead,
     qualification: row.qualification ?? undefined,
-    transcript: Array.isArray(row.transcript) ? row.transcript : [],
+    transcript: normalizeTranscript(row.transcript),
     audioFiles: Array.isArray(row.call_audio_files)
       ? row.call_audio_files.map((file: Record<string, any>) => ({
           kind: file.kind,
@@ -516,6 +539,122 @@ function mapDashboardCall(row: Record<string, any>): DashboardRecentCall {
         }))
       : []
   };
+}
+
+function leadFromEvents(events: unknown): Record<string, unknown> {
+  if (!Array.isArray(events)) return {};
+  return events
+    .slice()
+    .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")))
+    .reduce<Record<string, unknown>>((lead, event) => {
+      if (!event || typeof event !== "object") return lead;
+      const payload = (event as Record<string, unknown>).payload;
+      if (!payload || typeof payload !== "object") return lead;
+      return { ...lead, ...normalizeLeadPayload(payload as Record<string, unknown>) };
+    }, {});
+}
+
+function normalizeLeadPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  return compactRecord({
+    callerName: firstPayloadValue(payload, ["callerName", "caller_name", "name"]),
+    callerPhone: firstPayloadValue(payload, [
+      "callerPhone",
+      "caller_phone",
+      "phone",
+      "phone_number"
+    ]),
+    propertyAddress: firstPayloadValue(payload, ["propertyAddress", "property_address", "address"]),
+    propertyNameRaw: firstPayloadValue(payload, [
+      "propertyNameRaw",
+      "property_name_raw",
+      "propertyName",
+      "property_name"
+    ]),
+    desiredMoveInDate: firstPayloadValue(payload, [
+      "desiredMoveInDate",
+      "desired_move_in_date",
+      "move_in_date"
+    ]),
+    desiredLengthOfStay: firstPayloadValue(payload, [
+      "desiredLengthOfStay",
+      "desired_length_of_stay",
+      "length_of_stay"
+    ]),
+    requestedShowingTime: firstPayloadValue(payload, [
+      "requestedShowingTime",
+      "requested_showing_time",
+      "showing_time"
+    ]),
+    adultCount: firstPayloadValue(payload, ["adultCount", "adult_count", "people_count"]),
+    callbackRequested: firstPayloadValue(payload, ["callbackRequested", "callback_requested"]),
+    okWithPropertyStats: firstPayloadValue(payload, [
+      "okWithPropertyStats",
+      "ok_with_property_stats"
+    ]),
+    applicationEncouraged: firstPayloadValue(payload, [
+      "applicationEncouraged",
+      "application_encouraged"
+    ]),
+    showingRequested: firstPayloadValue(payload, ["showingRequested", "showing_requested"]),
+    isLead: firstPayloadValue(payload, ["isLead", "is_lead"])
+  });
+}
+
+function firstPayloadValue(payload: Record<string, unknown>, aliases: string[]): unknown {
+  for (const alias of aliases) {
+    const value = payload[alias];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
+}
+
+function compactRecord(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined && entry !== null && entry !== "")
+  );
+}
+
+function normalizeTranscript(value: unknown): CallSnapshot["transcript"] {
+  if (!Array.isArray(value)) return [];
+  const normalized: CallSnapshot["transcript"] = [];
+  for (const turn of value) {
+    if (!turn || typeof turn !== "object") continue;
+    const record = turn as Record<string, unknown>;
+    const speaker = normalizeSpeaker(record.speaker);
+    const text = typeof record.text === "string" ? record.text.trim() : "";
+    const at = typeof record.at === "string" ? record.at : new Date().toISOString();
+    if (!speaker || !text) continue;
+    const last = normalized.at(-1);
+    if (last?.speaker === speaker && shouldMergeTranscriptTurn(last.at, at)) {
+      last.text = mergeTranscriptText(last.text, text);
+      last.at = at;
+    } else {
+      normalized.push({ speaker, text, at });
+    }
+  }
+  return normalized;
+}
+
+function normalizeSpeaker(value: unknown): "caller" | "agent" | "system" | undefined {
+  return value === "caller" || value === "agent" || value === "system" ? value : undefined;
+}
+
+function shouldMergeTranscriptTurn(previousAt: string, nextAt: string): boolean {
+  const previousTime = new Date(previousAt).getTime();
+  const nextTime = new Date(nextAt).getTime();
+  if (!Number.isFinite(previousTime) || !Number.isFinite(nextTime)) return false;
+  return nextTime - previousTime < 20_000;
+}
+
+function mergeTranscriptText(previous: string, next: string): string {
+  if (previous === next || previous.endsWith(next)) return previous;
+  if (next.startsWith(previous)) return next;
+  if (/^[,.;:!?]/.test(next)) return `${previous}${next}`;
+  return `${previous} ${next}`;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function complianceEventCount(value: unknown): number {
