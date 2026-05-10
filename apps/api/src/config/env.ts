@@ -1,44 +1,57 @@
 import { z } from "zod";
 
+const optionalString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().optional()
+);
+const optionalUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().url().optional()
+);
+const optionalEmail = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().email().optional()
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(8787),
   API_BASE_URL: z.string().url().default("http://localhost:8787"),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
-  OWNER_NOTIFICATION_EMAIL: z.string().email().optional(),
-  SESSION_SECRET: z.string().optional(),
-  WEBHOOK_SIGNING_SECRET: z.string().optional(),
-  ENCRYPTION_KEY: z.string().optional(),
-  SENTRY_DSN: z.string().optional(),
+  OWNER_NOTIFICATION_EMAIL: optionalEmail,
+  SESSION_SECRET: optionalString,
+  WEBHOOK_SIGNING_SECRET: optionalString,
+  ENCRYPTION_KEY: optionalString,
+  SENTRY_DSN: optionalUrl,
 
-  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: optionalString,
   GEMINI_LIVE_MODEL: z.string().default("gemini-3.1-flash-live-preview"),
 
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_PHONE_NUMBER: z.string().optional(),
+  TWILIO_ACCOUNT_SID: optionalString,
+  TWILIO_AUTH_TOKEN: optionalString,
+  TWILIO_PHONE_NUMBER: optionalString,
   TWILIO_WEBHOOK_BASE_URL: z.string().url().default("http://localhost:8787"),
 
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_ANON_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  DATABASE_URL: z.string().optional(),
+  SUPABASE_URL: optionalUrl,
+  SUPABASE_ANON_KEY: optionalString,
+  SUPABASE_SERVICE_ROLE_KEY: optionalString,
+  DATABASE_URL: optionalString,
   SUPABASE_STORAGE_BUCKET: z.string().default("call-artifacts"),
 
-  RESEND_API_KEY: z.string().optional(),
+  RESEND_API_KEY: optionalString,
   RESEND_FROM_EMAIL: z.string().default("Morgan Leasing <calls@example.com>"),
-  RESEND_REPLY_TO: z.string().email().optional(),
+  RESEND_REPLY_TO: optionalEmail,
 
-  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_OAUTH_CLIENT_ID: optionalString,
+  GOOGLE_OAUTH_CLIENT_SECRET: optionalString,
+  GOOGLE_REDIRECT_URI: optionalUrl,
 
-  MIRO_CLIENT_ID: z.string().optional(),
-  MIRO_CLIENT_SECRET: z.string().optional(),
-  MIRO_REDIRECT_URI: z.string().url().optional(),
-  MIRO_DEFAULT_BOARD_ID: z.string().optional(),
-  MIRO_ACCESS_TOKEN: z.string().optional(),
-  MIRO_WEBHOOK_SECRET: z.string().optional()
+  MIRO_CLIENT_ID: optionalString,
+  MIRO_CLIENT_SECRET: optionalString,
+  MIRO_REDIRECT_URI: optionalUrl,
+  MIRO_DEFAULT_BOARD_ID: optionalString,
+  MIRO_ACCESS_TOKEN: optionalString,
+  MIRO_WEBHOOK_SECRET: optionalString
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -55,8 +68,6 @@ export function loadEnv(): AppEnv {
       "RESEND_API_KEY",
       "GOOGLE_OAUTH_CLIENT_ID",
       "GOOGLE_OAUTH_CLIENT_SECRET",
-      "MIRO_CLIENT_ID",
-      "MIRO_CLIENT_SECRET",
       "ENCRYPTION_KEY"
     ];
     const missing = required.filter((key) => !parsed[key]);

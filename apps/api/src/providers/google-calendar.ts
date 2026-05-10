@@ -17,11 +17,13 @@ export class GoogleCalendarProvider {
         : undefined;
   }
 
-  getAuthorizationUrl(): string | null {
+  getAuthorizationUrl(state?: string): string | null {
     if (!this.oauth2) return null;
     return this.oauth2.generateAuthUrl({
       access_type: "offline",
       prompt: "consent",
+      include_granted_scopes: true,
+      state,
       scope: [
         "https://www.googleapis.com/auth/calendar.events",
         "https://www.googleapis.com/auth/calendar.freebusy"

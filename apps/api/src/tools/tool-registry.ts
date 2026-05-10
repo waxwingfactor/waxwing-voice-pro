@@ -118,23 +118,20 @@ export class ToolRegistry {
   private async findShowingSlots(propertyId: string): Promise<Record<string, unknown>> {
     const property = await this.deps.repository.getProperty(propertyId);
     if (!property) return { ok: false, error: "Property not found." };
-    if (!property.calendarId) {
-      return { ok: false, error: "No calendar is configured for this property." };
-    }
 
-    const connection = await this.deps.repository.getCalendarConnection(
-      this.deps.client.id,
-      property.calendarId
-    );
+    const connection = property.calendarId
+      ? await this.deps.repository.getCalendarConnection(this.deps.client.id, property.calendarId)
+      : await this.deps.repository.getDefaultCalendarConnection(this.deps.client.id);
     if (!connection) {
       return { ok: false, error: "Google Calendar is not connected for this property." };
     }
+    const calendarId = property.calendarId ?? connection.calendarId;
 
     const refreshToken = this.deps.tokenVault.decrypt(connection.encryptedRefreshToken);
     const timeMin = new Date(Date.now() + 5 * 60 * 60 * 1000);
     const timeMax = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     const slots = await this.deps.calendar.findAvailableSlots({
-      calendarId: property.calendarId,
+      calendarId,
       refreshToken,
       timeMin,
       timeMax,
@@ -148,7 +145,6 @@ export class ToolRegistry {
   private async bookShowing(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     const property = await this.deps.repository.getProperty(String(args.property_id ?? ""));
     if (!property) return { ok: false, error: "Property not found." };
-    if (!property.calendarId) return { ok: false, error: "Property has no calendar." };
 
     const start = new Date(String(args.start));
     const end = new Date(String(args.end));
@@ -163,22 +159,22 @@ export class ToolRegistry {
       };
     }
 
-    const connection = await this.deps.repository.getCalendarConnection(
-      this.deps.client.id,
-      property.calendarId
-    );
+    const connection = property.calendarId
+      ? await this.deps.repository.getCalendarConnection(this.deps.client.id, property.calendarId)
+      : await this.deps.repository.getDefaultCalendarConnection(this.deps.client.id);
     if (!connection) {
       return { ok: false, error: "Google Calendar is not connected for this property." };
     }
+    const calendarId = property.calendarId ?? connection.calendarId;
 
     const slot: ShowingSlot = {
-      calendarId: property.calendarId,
+      calendarId,
       start: start.toISOString(),
       end: end.toISOString()
     };
     const refreshToken = this.deps.tokenVault.decrypt(connection.encryptedRefreshToken);
     const event = await this.deps.calendar.bookShowing({
-      calendarId: property.calendarId,
+      calendarId,
       refreshToken,
       slot,
       summary: `Showing: ${fullAddress(property)}`,

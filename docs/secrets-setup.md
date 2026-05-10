@@ -98,14 +98,8 @@ Twilio setup:
 
 1. Open Supabase.
 2. Select the project.
-3. Go to Project Settings, then API.
+3. Click Connect.
 4. Copy Project URL.
-
-### `SUPABASE_ANON_KEY`
-
-1. Same Supabase API page.
-2. Copy the anon public key.
-3. Use this only in browser-safe code.
 
 ### `SUPABASE_SERVICE_ROLE_KEY`
 
@@ -115,10 +109,15 @@ Twilio setup:
 
 ### `DATABASE_URL`
 
-1. Go to Supabase Project Settings.
-2. Open Database.
-3. Copy the connection string.
-4. Use the pooled or direct connection depending on the deployment host.
+This is optional in the current app. The API uses `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`.
+
+If you want the Postgres connection string for future direct SQL work:
+
+1. Open Supabase.
+2. Click Connect.
+3. Copy a pooled connection string.
+4. Replace `[YOUR-PASSWORD]` with the real database password, without brackets.
 
 ### `SUPABASE_STORAGE_BUCKET`
 
@@ -177,19 +176,36 @@ https://your-api-domain.com/google/oauth/callback
 2. Open the calendar settings.
 3. Find Integrate calendar.
 4. Copy Calendar ID.
-5. Store it on the property or client calendar connection record.
+5. Use it in the OAuth start URL. The app stores it in
+   `calendar_connections`.
+
+If a property has its own `calendar_id`, the agent uses that calendar. If not,
+the agent uses the most recently connected calendar for the client.
 
 ### Refresh Token
 
-1. Visit `/google/oauth/start` on the deployed API.
+1. Visit `/google/oauth/start` on the deployed API with the client slug and calendar ID:
+
+```text
+https://your-api-domain.com/google/oauth/start?client_slug=default&calendar_id=alex@example.com
+```
+
 2. Sign in as the property manager or calendar owner.
 3. Approve requested calendar scopes.
-4. The callback returns token information.
-5. Encrypt and store the refresh token in `calendar_connections`.
+4. The callback encrypts and stores the refresh token in `calendar_connections`.
+5. The response confirms the connected client, calendar ID, and scopes.
+
+Compatibility note: the API also accepts `/oauth/google/start` and
+`/oauth/google/callback`, but the recommended Google redirect URI is
+`/google/oauth/callback`.
 
 Production note: build a small admin UI flow for this before onboarding non-technical clients.
 
 ## Miro
+
+Miro is optional. If Miro variables are missing, calls, logging, audio storage,
+emails, and calendar booking still work. The post-call worker records a failed
+Miro export instead of blocking the call package.
 
 ### `MIRO_CLIENT_ID` and `MIRO_CLIENT_SECRET`
 
@@ -236,5 +252,5 @@ Before the first real call:
 - Gemini API key works.
 - Resend domain is verified.
 - Google Calendar OAuth connection is stored.
-- Miro board ID and token are ready.
-- One test call logs transcript, audio, email, and Miro result.
+- Miro board ID and token are ready, if you want Miro sync now.
+- One test call logs transcript, audio, email, and a Miro result or Miro skipped record.

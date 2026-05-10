@@ -5,6 +5,7 @@ import type { GeminiLiveClient } from "../providers/gemini-live.js";
 import type { GoogleCalendarProvider } from "../providers/google-calendar.js";
 import type { TwilioCallProvider } from "../providers/twilio-call.js";
 import type { PostCallWorker } from "../jobs/post-call-worker.js";
+import type { TokenVault } from "../security/token-vault.js";
 import { TwilioMediaSession } from "../voice/twilio-media-session.js";
 
 export function registerTwilioRoutes(
@@ -15,6 +16,7 @@ export function registerTwilioRoutes(
     storage: ArtifactStorage;
     gemini: GeminiLiveClient;
     calendar: GoogleCalendarProvider;
+    tokenVault: TokenVault;
     twilio: TwilioCallProvider;
     postCallWorker: PostCallWorker;
   }
@@ -56,6 +58,7 @@ export function registerTwilioRoutes(
       storage: deps.storage,
       gemini: deps.gemini,
       calendar: deps.calendar,
+      tokenVault: deps.tokenVault,
       twilio: deps.twilio,
       postCallWorker: deps.postCallWorker
     });

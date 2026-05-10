@@ -36,10 +36,12 @@ export interface AppRepository {
   getClientBySlug(slug: string): Promise<ClientProfile | null>;
   listActiveProperties(clientId: string): Promise<PropertyRecord[]>;
   getProperty(propertyId: string): Promise<PropertyRecord | null>;
+  upsertCalendarConnection(input: CalendarConnection): Promise<void>;
   getCalendarConnection(
     clientId: string,
     calendarId: string
   ): Promise<CalendarConnection | null>;
+  getDefaultCalendarConnection(clientId: string): Promise<CalendarConnection | null>;
   createCall(snapshot: CallSnapshot): Promise<void>;
   updateCall(snapshot: CallSnapshot): Promise<void>;
   appendCallEvent(input: {
@@ -119,6 +121,21 @@ export class SupabaseAppRepository implements AppRepository {
     return data ? mapProperty(data) : null;
   }
 
+  async upsertCalendarConnection(input: CalendarConnection): Promise<void> {
+    const { error } = await this.supabase.from("calendar_connections").upsert(
+      {
+        client_id: input.clientId,
+        calendar_id: input.calendarId,
+        google_account_email: input.googleAccountEmail,
+        encrypted_refresh_token: input.encryptedRefreshToken,
+        scopes: input.scopes,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "client_id,calendar_id" }
+    );
+    if (error) throw error;
+  }
+
   async getCalendarConnection(
     clientId: string,
     calendarId: string
@@ -128,6 +145,27 @@ export class SupabaseAppRepository implements AppRepository {
       .select("*")
       .eq("client_id", clientId)
       .eq("calendar_id", calendarId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data
+      ? {
+          clientId: data.client_id,
+          calendarId: data.calendar_id,
+          googleAccountEmail: data.google_account_email,
+          encryptedRefreshToken: data.encrypted_refresh_token,
+          scopes: data.scopes ?? []
+        }
+      : null;
+  }
+
+  async getDefaultCalendarConnection(clientId: string): Promise<CalendarConnection | null> {
+    const { data, error } = await this.supabase
+      .from("calendar_connections")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) throw error;

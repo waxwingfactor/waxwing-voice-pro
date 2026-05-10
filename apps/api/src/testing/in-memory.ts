@@ -74,7 +74,13 @@ export class InMemoryRepository implements AppRepository {
     return properties.find((property) => property.id === propertyId) ?? null;
   }
 
+  async upsertCalendarConnection(): Promise<void> {}
+
   async getCalendarConnection(): Promise<null> {
+    return null;
+  }
+
+  async getDefaultCalendarConnection(): Promise<null> {
     return null;
   }
 

@@ -62,7 +62,8 @@ create table calendar_connections (
   encrypted_refresh_token text not null,
   scopes text[] not null default '{}',
   connected_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (client_id, calendar_id)
 );
 
 create table calls (

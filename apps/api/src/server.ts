@@ -13,6 +13,7 @@ import { MiroProvider } from "./providers/miro.js";
 import { ResendEmailProvider } from "./providers/resend-email.js";
 import { TwilioCallProvider } from "./providers/twilio-call.js";
 import { PostCallWorker } from "./jobs/post-call-worker.js";
+import { TokenVault } from "./security/token-vault.js";
 
 export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
   const app = Fastify({
@@ -51,6 +52,7 @@ export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
     clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
     redirectUri: env.GOOGLE_REDIRECT_URI
   });
+  const tokenVault = new TokenVault(env.ENCRYPTION_KEY);
 
   const twilio = new TwilioCallProvider({
     accountSid: env.TWILIO_ACCOUNT_SID,
@@ -77,13 +79,14 @@ export async function buildServer(env: AppEnv): Promise<FastifyInstance> {
   });
 
   registerHealthRoutes(app);
-  registerOAuthRoutes(app, { env, calendar });
+  registerOAuthRoutes(app, { env, calendar, repository, tokenVault });
   registerTwilioRoutes(app, {
     env,
     repository,
     storage,
     gemini,
     calendar,
+    tokenVault,
     twilio,
     postCallWorker
   });

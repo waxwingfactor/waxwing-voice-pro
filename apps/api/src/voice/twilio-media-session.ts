@@ -13,13 +13,13 @@ import type { GeminiLiveClient, GeminiLiveSession } from "../providers/gemini-li
 import type { GoogleCalendarProvider } from "../providers/google-calendar.js";
 import type { TwilioCallProvider } from "../providers/twilio-call.js";
 import type { PostCallWorker } from "../jobs/post-call-worker.js";
+import type { TokenVault } from "../security/token-vault.js";
 import { CallAudioRecorder } from "../media/audio-recorder.js";
 import {
   geminiPcm24ToTwilioBase64MuLaw,
   twilioBase64MuLawToGeminiPcm16
 } from "../media/audio-codec.js";
 import { ToolRegistry } from "../tools/tool-registry.js";
-import { TokenVault } from "../security/token-vault.js";
 
 export class TwilioMediaSession {
   private readonly recorder = new CallAudioRecorder();
@@ -38,6 +38,7 @@ export class TwilioMediaSession {
       storage: ArtifactStorage;
       gemini: GeminiLiveClient;
       calendar: GoogleCalendarProvider;
+      tokenVault: TokenVault;
       twilio: TwilioCallProvider;
       postCallWorker: PostCallWorker;
     }
@@ -95,7 +96,7 @@ export class TwilioMediaSession {
       repository: this.deps.repository,
       calendar: this.deps.calendar,
       twilio: this.deps.twilio,
-      tokenVault: new TokenVault(process.env.ENCRYPTION_KEY),
+      tokenVault: this.deps.tokenVault,
       state: this.callState,
       client,
       twilioCallSid: this.twilioCallSid
