@@ -19,9 +19,10 @@ export class PostCallWorker {
     client: ClientProfile;
     audioPaths: string[];
   }): Promise<void> {
-    const audioUrls = await Promise.all(
-      params.audioPaths.map((path) => this.deps.storage.createSignedUrl(path))
-    );
+    const preferredAudioPath = preferredAudioArtifact(params.audioPaths);
+    const audioUrls = preferredAudioPath
+      ? [await this.deps.storage.createSignedUrl(preferredAudioPath)]
+      : [];
     const transcriptText = params.call.transcript
       .map((turn) => `[${turn.at}] ${turn.speaker}: ${turn.text}`)
       .join("\n");
@@ -121,4 +122,15 @@ function buildSummary(call: CallSnapshot): string {
   const qualification = call.qualification?.qualifiedToApply ?? "not completed";
   const showing = call.lead.showingRequested ? "Showing was requested." : "No showing requested.";
   return `${name}called about ${property}. Qualification status: ${qualification}. ${showing}`;
+}
+
+function preferredAudioArtifact(paths: string[]): string | undefined {
+  return (
+    paths.find((path) => path.includes("mixed_wav") || path.endsWith("conversation.wav")) ??
+    paths.find((path) => path.includes("outbound_wav")) ??
+    paths.find((path) => path.includes("inbound_wav")) ??
+    paths.find((path) => path.endsWith(".wav")) ??
+    paths.find((path) => path.includes("mixed")) ??
+    paths[0]
+  );
 }

@@ -1,7 +1,6 @@
 import {
   Bell,
   CalendarCheck,
-  CheckCircle2,
   FileAudio,
   Home,
   Mail,
@@ -65,13 +64,13 @@ export default async function SettingsPage() {
         </nav>
         <p className="navSection">Configure</p>
         <nav>
-          <a href="/#calendar">
+          <a href="/calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
-          <a href="/#miro">
+          <a href="/miro">
             <MapPinned size={18} aria-hidden /> Miro
           </a>
-          <a href="/#compliance">
+          <a href="/compliance">
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
@@ -113,6 +112,14 @@ export default async function SettingsPage() {
         ) : null}
 
         <form action={saveSettings} className="settingsForm">
+          <div className="settingsSaveBar">
+            <div>
+              <strong>Agent settings</strong>
+              <span>Changes apply to future calls after the API reloads them.</span>
+            </div>
+            <button type="submit">Save settings</button>
+          </div>
+
           <section className="voiceGrid">
             {data.voiceOptions.map((voice, index) => (
               <label
@@ -147,7 +154,6 @@ export default async function SettingsPage() {
                 <h2>Customize tone</h2>
                 <p>Fine-tune how {data.settings.agentName} speaks on every call.</p>
               </div>
-              <button type="submit">Save settings</button>
             </div>
 
             <div className="settingsGrid">

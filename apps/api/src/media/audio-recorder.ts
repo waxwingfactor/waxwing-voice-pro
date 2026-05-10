@@ -139,7 +139,7 @@ export class CallAudioRecorder {
     repository: AppRepository;
     path: string;
   }): Promise<void> {
-    const body = mixMuLawTimelineToWav([...this.inboundTimeline, ...this.outboundTimeline]);
+    const body = mixMuLawTimelineToWav(this.inboundTimeline, this.outboundTimeline);
     await params.storage.upload(params.path, body, "audio/wav");
     await params.repository.recordCallAudio({
       callId: params.callId,
@@ -157,8 +157,12 @@ export class CallAudioRecorder {
   }
 }
 
-function mixMuLawTimelineToWav(chunks: TimedMuLawChunk[]): Buffer {
+function mixMuLawTimelineToWav(
+  inboundChunks: TimedMuLawChunk[],
+  outboundChunks: TimedMuLawChunk[]
+): Buffer {
   const sampleRate = 8000;
+  const chunks = [...inboundChunks, ...outboundChunks];
   const totalSamples = chunks.reduce((max, chunk) => {
     const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
     return Math.max(max, offsetSamples + chunk.data.byteLength);
@@ -168,25 +172,30 @@ function mixMuLawTimelineToWav(chunks: TimedMuLawChunk[]): Buffer {
     return pcm16ToWav(Buffer.alloc(0), sampleRate);
   }
 
-  const sums = new Int32Array(totalSamples);
-  const counts = new Uint8Array(totalSamples);
+  const mixed = Buffer.alloc(totalSamples * 2);
 
-  for (const chunk of chunks) {
+  for (const chunk of inboundChunks) {
     const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
     const pcm = decodeMuLawToPcm16(chunk.data);
     const sampleCount = Math.floor(pcm.byteLength / 2);
     for (let i = 0; i < sampleCount; i += 1) {
       const target = offsetSamples + i;
       if (target >= totalSamples) break;
-      sums[target] += pcm.readInt16LE(i * 2);
-      counts[target] += 1;
+      // Twilio's inbound stream can contain a faint copy of assistant audio on some calls.
+      // The outbound pass below overwrites those samples so the assistant is not doubled.
+      mixed.writeInt16LE(pcm.readInt16LE(i * 2), target * 2);
     }
   }
 
-  const mixed = Buffer.alloc(totalSamples * 2);
-  for (let i = 0; i < totalSamples; i += 1) {
-    const sample = counts[i] > 0 ? Math.round(sums[i] / counts[i]) : 0;
-    mixed.writeInt16LE(clampPcm16(sample), i * 2);
+  for (const chunk of outboundChunks) {
+    const offsetSamples = Math.max(0, Math.round((chunk.atMs / 1000) * sampleRate));
+    const pcm = decodeMuLawToPcm16(chunk.data);
+    const sampleCount = Math.floor(pcm.byteLength / 2);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const target = offsetSamples + i;
+      if (target >= totalSamples) break;
+      mixed.writeInt16LE(clampPcm16(pcm.readInt16LE(i * 2)), target * 2);
+    }
   }
   return pcm16ToWav(mixed, sampleRate);
 }

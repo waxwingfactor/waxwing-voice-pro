@@ -2,7 +2,6 @@ import {
   Bell,
   CalendarCheck,
   ChevronRight,
-  CheckCircle2,
   Clock3,
   FileAudio,
   Home,
@@ -51,6 +50,7 @@ interface DashboardData {
     showingRequested: boolean;
     callbackRequested: boolean;
     complianceEventCount: number;
+    lead?: Record<string, unknown>;
   }>;
   integrations: {
     api: boolean;
@@ -88,13 +88,13 @@ export default async function DashboardPage() {
         </nav>
         <p className="navSection">Configure</p>
         <nav>
-          <a href="#calendar">
+          <a href="/calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
-          <a href="#miro">
+          <a href="/miro">
             <MapPinned size={18} aria-hidden /> Miro
           </a>
-          <a href="#compliance">
+          <a href="/compliance">
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
@@ -157,25 +157,21 @@ export default async function DashboardPage() {
             icon={<PhoneCall size={20} />}
             label="Calls today"
             value={String(data.metrics.callsToday)}
-            trend="+12% vs last week"
           />
           <Metric
             icon={<UserRoundCheck size={20} />}
             label="Qualified leads"
             value={String(data.metrics.qualifiedLeadsToday)}
-            trend="+3 vs last week"
           />
           <Metric
             icon={<CalendarCheck size={20} />}
             label="Showings booked"
             value={String(data.metrics.showingsBookedToday)}
-            trend="+5 vs last week"
           />
           <Metric
             icon={<Clock3 size={20} />}
             label="Follow-ups"
             value={String(data.metrics.followUpsToday)}
-            trend="Needs review"
           />
         </section>
 
@@ -198,7 +194,7 @@ export default async function DashboardPage() {
                 <span>Caller</span>
                 <span>Property</span>
                 <span>Status</span>
-                <span>Showing</span>
+                <span>Tour</span>
               </div>
               {data.recentCalls.length > 0 ? (
                 data.recentCalls.map((call) => (
@@ -224,76 +220,28 @@ export default async function DashboardPage() {
           </div>
 
           <div className="sideStack">
-            <div className="panel" id="calendar">
-              <h2>Connection Health</h2>
-              <ul className="statusList">
-                <StatusItem ok={data.integrations.twilio} label="Twilio voice credentials" />
-                <StatusItem ok={data.integrations.gemini} label="Gemini Live configured" />
-                <StatusItem ok={data.integrations.resend} label="Resend email configured" />
-                <StatusItem
-                  ok={data.integrations.googleCalendar}
-                  label={`${data.counts.calendarConnections} Google Calendar connection${
-                    data.counts.calendarConnections === 1 ? "" : "s"
-                  }`}
-                />
-                <StatusItem ok={data.integrations.miro} label="Miro sync optional" />
-              </ul>
-              {data.calendarConnections.length > 0 ? (
-                <div className="connectionCard">
-                  <strong>{data.calendarConnections[0].googleAccountEmail}</strong>
-                  <span>{data.calendarConnections[0].calendarId}</span>
+            <div className="panel upcomingPanel">
+              <div className="sectionHeader">
+                <div>
+                  <h2>Upcoming showings</h2>
+                  <p>{upcomingShowings(data).length} ready for follow-up</p>
                 </div>
-              ) : null}
-            </div>
-
-            <div className="panel qualityPanel" id="compliance">
-              <h2>This week</h2>
-              <p>Lead quality is steady</p>
-              <div className="donutMetric">
-                <span>{qualificationRate(data)}%</span>
+                <CalendarCheck size={22} aria-hidden />
               </div>
-              <div className="qualityStats">
-                <span>Active properties · {data.counts.activeProperties}</span>
-                <span>Review items · {data.metrics.complianceEventsToday}</span>
+              <div className="showingList">
+                {upcomingShowings(data).length > 0 ? (
+                  upcomingShowings(data).map((showing) => (
+                    <a href={`/calls/${showing.callId}`} className="showingItem" key={showing.callId}>
+                      <span>{showing.day}</span>
+                      <strong>{showing.caller}</strong>
+                      <small>{showing.property}</small>
+                      <em>{showing.time}</em>
+                    </a>
+                  ))
+                ) : (
+                  <p className="emptyState">No showing requests captured yet today.</p>
+                )}
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="split hiddenLegacy">
-          <div className="panel">
-            <h2>Connection Health</h2>
-            <ul className="statusList">
-              <StatusItem ok={data.integrations.twilio} label="Twilio voice credentials" />
-              <StatusItem ok={data.integrations.gemini} label="Gemini Live configured" />
-              <StatusItem ok={data.integrations.resend} label="Resend email configured" />
-              <StatusItem
-                ok={data.integrations.googleCalendar}
-                label={`${data.counts.calendarConnections} Google Calendar connection${
-                  data.counts.calendarConnections === 1 ? "" : "s"
-                }`}
-              />
-              <StatusItem ok={data.integrations.miro} label="Miro sync optional" />
-            </ul>
-            {data.calendarConnections.length > 0 ? (
-              <div className="connectionCard">
-                <strong>{data.calendarConnections[0].googleAccountEmail}</strong>
-                <span>{data.calendarConnections[0].calendarId}</span>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="panel">
-            <h2>Fair Housing Guardrails</h2>
-            <p>
-              Calls are tracked for protected-class-sensitive requests and other review events.
-            </p>
-            <div className="callout">
-              <ShieldCheck size={22} aria-hidden />
-              <span>
-                {data.metrics.complianceEventsToday} compliance review item
-                {data.metrics.complianceEventsToday === 1 ? "" : "s"} today
-              </span>
             </div>
           </div>
         </section>
@@ -305,37 +253,30 @@ export default async function DashboardPage() {
 function Metric({
   icon,
   label,
-  value,
-  trend
+  value
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  trend: string;
 }) {
   return (
     <div className="metric">
       <div className="metricIcon">{icon}</div>
       <span>{label}</span>
       <strong>{value}</strong>
-      <small>{trend}</small>
       <i className="sparkline" aria-hidden />
     </div>
   );
 }
 
 function StatusPill({ value }: { value: string }) {
-  const isBad = value.toLowerCase().includes("no") || value.toLowerCase().includes("failed");
-  return <span className={isBad ? "statusPill bad" : "statusPill"}>{value}</span>;
-}
-
-function StatusItem({ ok, label }: { ok: boolean; label: string }) {
-  const Icon = ok ? CheckCircle2 : TriangleAlert;
+  const status = displayStatus(value);
+  const isBad = status.tone === "bad";
+  const isNeutral = status.tone === "neutral";
   return (
-    <li className={ok ? "ok" : "warn"}>
-      <Icon size={18} aria-hidden />
-      {label}
-    </li>
+    <span className={isBad ? "statusPill bad" : isNeutral ? "statusPill neutral" : "statusPill"}>
+      {status.label}
+    </span>
   );
 }
 
@@ -422,17 +363,63 @@ function showingLabel(call: DashboardData["recentCalls"][number]): string {
   return "None";
 }
 
+function upcomingShowings(data: DashboardData) {
+  return data.recentCalls
+    .filter((call) => call.outcome === "showing_booked" || call.showingRequested)
+    .slice(0, 4)
+    .map((call) => {
+      const requestedTime = stringValue(call.lead?.requestedShowingTime);
+      const date = requestedTime === "Not captured" ? new Date(call.startedAt) : new Date(requestedTime);
+      const isValidDate = !Number.isNaN(date.getTime());
+      return {
+        callId: call.id,
+        caller: call.callerName ?? "Unknown caller",
+        property: call.propertyAddress ?? "Property not captured",
+        day: isValidDate
+          ? new Intl.DateTimeFormat("en-US", { timeZone: data.client.timezone, weekday: "short" }).format(date)
+          : "Soon",
+        time:
+          requestedTime !== "Not captured" && isValidDate
+            ? new Intl.DateTimeFormat("en-US", {
+                timeZone: data.client.timezone,
+                hour: "numeric",
+                minute: "2-digit"
+              }).format(date)
+            : showingLabel(call)
+      };
+    });
+}
+
 function initials(name?: string): string {
   if (!name) return "??";
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase()).join("") || "??";
 }
 
-function qualificationRate(data: DashboardData): number {
-  if (data.metrics.callsToday === 0) return 0;
-  return Math.round((data.metrics.qualifiedLeadsToday / data.metrics.callsToday) * 100);
-}
-
 function firstManagerEmail(data: DashboardData): string {
   return data.client.managerEmails?.[0] ?? "alex@waxwingfactory.com";
+}
+
+function displayStatus(value: string): { label: string; tone: "good" | "bad" | "neutral" } {
+  const key = value.toLowerCase();
+  if (key === "yes") return { label: "Qualified", tone: "good" };
+  if (key === "debatable") return { label: "Needs review", tone: "neutral" };
+  if (key === "no") return { label: "Not qualified", tone: "bad" };
+  if (key === "showing_booked") return { label: "Showing booked", tone: "good" };
+  if (key === "lead_created") return { label: "Lead captured", tone: "good" };
+  if (key === "ended_without_lead") return { label: "Ended", tone: "neutral" };
+  if (key === "transferred") return { label: "Transferred", tone: "neutral" };
+  if (key === "not_a_leasing_call") return { label: "Not leasing", tone: "neutral" };
+  if (key === "active") return { label: "Active", tone: "good" };
+  if (key === "ending") return { label: "Wrapping up", tone: "neutral" };
+  if (key === "failed") return { label: "Failed", tone: "bad" };
+  return {
+    label: value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    tone: "neutral"
+  };
+}
+
+function stringValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "Not captured";
+  return String(value);
 }

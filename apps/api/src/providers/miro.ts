@@ -81,21 +81,41 @@ export class MiroProvider {
 
     created.push(
       await this.createText(accessToken, boardId, {
-        content: transcriptHtml(params.call),
-        x: origin.x - 190,
-        y: origin.y + 520,
-        width: 520
+        content: audioLinksHtml(params.audioUrls.slice(0, 1)),
+        x: origin.x + 415,
+        y: origin.y + 430,
+        width: 310
       })
     );
 
     created.push(
-      await this.createText(accessToken, boardId, {
-        content: audioLinksHtml(params.audioUrls),
-        x: origin.x + 360,
+      await this.createShape(accessToken, boardId, {
+        content: "<strong>Transcript</strong>",
+        fillColor: "#F4F7F8",
+        textColor: "#102620",
+        x: origin.x,
         y: origin.y + 520,
-        width: 420
+        width: 980,
+        height: 56
       })
     );
+
+    const transcriptChunks = transcriptHtmlChunks(params.call);
+    for (const [index, chunk] of transcriptChunks.entries()) {
+      created.push(
+        await this.createShape(accessToken, boardId, {
+          content: chunk,
+          x: origin.x,
+          y: origin.y + 625 + index * 365,
+          width: 980,
+          height: 310,
+          fillColor: "#FFFFFF",
+          textColor: "#172026",
+          fontSize: "14",
+          textAlignVertical: "top"
+        })
+      );
+    }
 
     return { boardId, itemId: created.find((item) => item.id)?.id };
   }
@@ -169,6 +189,8 @@ export class MiroProvider {
       y: number;
       width: number;
       height: number;
+      fontSize?: string;
+      textAlignVertical?: "top" | "middle" | "bottom";
     }
   ): Promise<{ id?: string }> {
     return this.miroRequest(accessToken, boardId, "shapes", {
@@ -180,9 +202,9 @@ export class MiroProvider {
         fillColor: params.fillColor,
         fillOpacity: "1.0",
         color: params.textColor,
-        fontSize: "22",
+        fontSize: params.fontSize ?? "22",
         textAlign: "left",
-        textAlignVertical: "middle"
+        textAlignVertical: params.textAlignVertical ?? "middle"
       },
       position: { x: params.x, y: params.y },
       geometry: { width: params.width, height: params.height }
@@ -280,8 +302,8 @@ async function fetchMiroToken(params: Record<string, string>): Promise<MiroToken
 function layoutOrigin(call: CallSnapshot): { x: number; y: number } {
   const numeric = Array.from(call.id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return {
-    x: (numeric % 5) * 920,
-    y: Math.floor(numeric / 5) % 5 * 780
+    x: (numeric % 4) * 1280,
+    y: (Math.floor(numeric / 4) % 8) * 2600
   };
 }
 
@@ -347,24 +369,49 @@ function capturedInfoHtml(call: CallSnapshot): string {
   return `<p><strong>Captured info</strong></p>${rows || "<p>No structured fields captured.</p>"}`;
 }
 
-function transcriptHtml(call: CallSnapshot): string {
-  const excerpt = call.transcript
-    .slice(-12)
-    .map((turn) => `<p><strong>${escapeHtml(turn.speaker)}:</strong> ${escapeHtml(turn.text)}</p>`)
-    .join("");
+function transcriptHtmlChunks(call: CallSnapshot): string[] {
+  if (call.transcript.length === 0) return ["<p>No transcript captured.</p>"];
 
-  return `<p><strong>Transcript excerpt</strong></p>${excerpt || "<p>No transcript captured.</p>"}`;
+  const chunks: string[] = [];
+  let current = "";
+  let turnsInChunk = 0;
+
+  for (const turn of call.transcript) {
+    const rendered = `<p><strong>${speakerLabel(turn.speaker)}:</strong> ${escapeHtml(turn.text)}</p>`;
+    const wouldBeTooLong = (current + rendered).length > 950;
+    const wouldHaveTooManyTurns = turnsInChunk >= 4;
+    if (current && (wouldBeTooLong || wouldHaveTooManyTurns)) {
+      chunks.push(wrapTranscriptChunk(current, chunks.length + 1));
+      current = "";
+      turnsInChunk = 0;
+    }
+    current += rendered;
+    turnsInChunk += 1;
+  }
+
+  if (current) chunks.push(wrapTranscriptChunk(current, chunks.length + 1));
+  return chunks;
 }
 
 function audioLinksHtml(audioUrls: string[]): string {
   const links = audioUrls
-    .slice(0, 8)
+    .slice(0, 1)
     .map(
-      (url, index) =>
-        `<p><a href="${escapeHtml(url)}">Audio file ${index + 1}</a></p>`
+      (url) =>
+        `<p><a href="${escapeHtml(url)}">Conversation recording</a></p>`
     )
     .join("");
-  return `<p><strong>Audio and artifacts</strong></p>${links || "<p>No audio links available.</p>"}`;
+  return `<p><strong>Audio</strong></p>${links || "<p>No audio link available.</p>"}`;
+}
+
+function wrapTranscriptChunk(content: string, chunkNumber: number): string {
+  return `<p><strong>Transcript ${chunkNumber}</strong></p>${content}`;
+}
+
+function speakerLabel(speaker: CallSnapshot["transcript"][number]["speaker"]): string {
+  if (speaker === "agent") return "Agent";
+  if (speaker === "caller") return "Caller";
+  return "System";
 }
 
 function money(value?: number): string | undefined {

@@ -157,10 +157,11 @@ function renderPostCallHtml(params: {
     )
     .join("");
   const audioLinks = params.audioUrls
+    .slice(0, 1)
     .map(
-      (url, index) => `
+      (url) => `
         <a href="${escapeHtml(url)}" style="display:inline-block;margin:0 8px 8px 0;padding:10px 14px;border-radius:8px;background:#EAF7F1;color:#0B5F4B;font-size:13px;font-weight:700;text-decoration:none;">
-          Audio file ${index + 1}
+          Conversation recording
         </a>`
     )
     .join("");

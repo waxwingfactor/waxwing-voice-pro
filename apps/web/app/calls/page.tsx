@@ -1,7 +1,6 @@
 import {
   Bell,
   CalendarCheck,
-  CheckCircle2,
   ClipboardList,
   Download,
   FileAudio,
@@ -94,13 +93,13 @@ export default async function CallsPage() {
         </nav>
         <p className="navSection">Configure</p>
         <nav>
-          <a href="/#calendar">
+          <a href="/calendar">
             <CalendarCheck size={18} aria-hidden /> Calendar
           </a>
-          <a href="/#miro">
+          <a href="/miro">
             <MapPinned size={18} aria-hidden /> Miro
           </a>
-          <a href="/#compliance">
+          <a href="/compliance">
             <ShieldCheck size={18} aria-hidden /> Compliance
           </a>
         </nav>
@@ -187,7 +186,7 @@ export default async function CallsPage() {
                     </span>
                     <span>{call.propertyAddress ?? "Property not captured"}</span>
                     <span>{stringValue(call.lead?.desiredMoveInDate)}</span>
-                    <StatusPill value={call.qualificationStatus ?? call.status} />
+                    <StatusPill value={call.qualificationStatus ?? call.outcome ?? call.status} />
                     <span className="scoreCell">
                       <i aria-hidden />
                       {leadScore(call)}
@@ -240,11 +239,8 @@ function RecordingPlayers({ call }: { call: DashboardData["recentCalls"][number]
   );
   const primaryFile =
     playableFiles.find((file) => file.kind === "mixed_wav") ?? playableFiles[0];
-  const secondaryFiles = call.audioFiles.filter(
-    (file) => file.signedUrl && file.storagePath !== primaryFile?.storagePath
-  );
 
-  if (!primaryFile && secondaryFiles.length === 0) {
+  if (!primaryFile) {
     return (
       <p className="emptyState">
         No conversation recording is available yet. New calls will include one playable
@@ -269,19 +265,6 @@ function RecordingPlayers({ call }: { call: DashboardData["recentCalls"][number]
           conversation track here.
         </p>
       )}
-      {secondaryFiles.length > 0 ? (
-        <details className="archiveDetails">
-          <summary>More audio files</summary>
-          <div className="archiveLinks">
-            {secondaryFiles.map((file) => (
-              <a href={file.signedUrl} key={file.storagePath}>
-                <Download size={15} aria-hidden />
-                {audioLabel(file.kind)}
-              </a>
-            ))}
-          </div>
-        </details>
-      ) : null}
     </div>
   );
 }
@@ -428,8 +411,20 @@ function speakerLabel(speaker: "caller" | "agent" | "system"): string {
 }
 
 function StatusPill({ value }: { value: string }) {
-  const isBad = value.toLowerCase().includes("no") || value.toLowerCase().includes("failed");
-  return <span className={isBad ? "statusPill bad" : "statusPill"}>{value}</span>;
+  const status = displayStatus(value);
+  return (
+    <span
+      className={
+        status.tone === "bad"
+          ? "statusPill bad"
+          : status.tone === "neutral"
+            ? "statusPill neutral"
+            : "statusPill"
+      }
+    >
+      {status.label}
+    </span>
+  );
 }
 
 function initials(name?: string): string {
@@ -505,4 +500,23 @@ function formatBytes(value: number): string {
 
 function firstManagerEmail(data: DashboardData): string {
   return data.client.managerEmails?.[0] ?? "alex@waxwingfactory.com";
+}
+
+function displayStatus(value: string): { label: string; tone: "good" | "bad" | "neutral" } {
+  const key = value.toLowerCase();
+  if (key === "yes") return { label: "Qualified", tone: "good" };
+  if (key === "debatable") return { label: "Needs review", tone: "neutral" };
+  if (key === "no") return { label: "Not qualified", tone: "bad" };
+  if (key === "showing_booked") return { label: "Showing booked", tone: "good" };
+  if (key === "lead_created") return { label: "Lead captured", tone: "good" };
+  if (key === "ended_without_lead") return { label: "Ended", tone: "neutral" };
+  if (key === "transferred") return { label: "Transferred", tone: "neutral" };
+  if (key === "not_a_leasing_call") return { label: "Not leasing", tone: "neutral" };
+  if (key === "active") return { label: "Active", tone: "good" };
+  if (key === "ending") return { label: "Wrapping up", tone: "neutral" };
+  if (key === "failed") return { label: "Failed", tone: "bad" };
+  return {
+    label: value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    tone: "neutral"
+  };
 }
