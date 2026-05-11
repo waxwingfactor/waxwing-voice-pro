@@ -38,8 +38,8 @@ export default async function CalendarPage() {
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
-          <span className="brandMark">WV</span>
-          <span>Waxwing Voice</span>
+          <span className="brandMark">NA</span>
+          <span>NAVA</span>
         </div>
         <p className="navSection">Workspace</p>
         <nav>
@@ -67,7 +67,7 @@ export default async function CalendarPage() {
         </nav>
         <div className="agentCard">
           <span className="listenOrb" />
-          <strong>Voice agent</strong>
+          <strong>Nava</strong>
           <small>Listening for calls</small>
           <span>Calendar booking</span>
         </div>
@@ -81,7 +81,7 @@ export default async function CalendarPage() {
           </div>
           <div className="topActions">
             <span className="listeningBadge">
-              <span className="listenOrb" /> Agent is listening
+              <span className="listenOrb" /> Nava is listening
             </span>
             <button className="iconButton" aria-label="Notifications">
               <Bell size={20} aria-hidden />
@@ -89,7 +89,7 @@ export default async function CalendarPage() {
             <a className="iconButton" href="mailto:alex@waxwingfactory.com" aria-label="Email support">
               <Mail size={20} aria-hidden />
             </a>
-            <span className="avatar">WV</span>
+            <span className="avatar">HW</span>
           </div>
         </header>
 

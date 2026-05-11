@@ -79,8 +79,8 @@ export default async function CallDetailPage({
     <main className="shell">
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
-          <span className="brandMark">WV</span>
-          <span>Waxwing Voice</span>
+          <span className="brandMark">NA</span>
+          <span>NAVA</span>
         </div>
         <p className="navSection">Workspace</p>
         <nav>
@@ -108,7 +108,7 @@ export default async function CallDetailPage({
         </nav>
         <div className="agentCard">
           <span className="listenOrb" />
-          <strong>Voice agent</strong>
+          <strong>Nava</strong>
           <small>Listening for calls</small>
           <span>Call review · v2.4</span>
         </div>
@@ -125,7 +125,7 @@ export default async function CallDetailPage({
           </div>
           <div className="topActions">
             <span className="listeningBadge">
-              <span className="listenOrb" /> Agent is listening
+              <span className="listenOrb" /> Nava is listening
             </span>
             <button className="iconButton" aria-label="Notifications">
               <Bell size={20} aria-hidden />
@@ -133,7 +133,7 @@ export default async function CallDetailPage({
             <a className="iconButton" href={`mailto:${firstManagerEmail(data)}`} aria-label="Email manager">
               <Mail size={20} aria-hidden />
             </a>
-            <span className="avatar">WV</span>
+            <span className="avatar">HW</span>
           </div>
         </header>
 
